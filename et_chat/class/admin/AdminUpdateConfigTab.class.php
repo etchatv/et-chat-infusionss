@@ -29,13 +29,15 @@ class AdminUpdateConfigTab extends DbConectionMaker
 		session_start();
 
 		header('Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0');
+		// Sets charset and content-type for index.php
+		header('content-type: text/html; charset=utf-8');
 		
 		// create new LangXml Object
 		$langObj = new LangXml();
 		$lang=$langObj->getLang()->admin[0]->admin_prop[0];
 		
 		
-		if ($_SESSION['etchat_v3_user_priv']=="admin"){
+		if ($_SESSION['etchat_'.$this->_prefix.'user_priv']=="admin"){
 			
 			$this->dbObj->sqlSet("UPDATE {$this->_prefix}etchat_config SET etchat_config_reloadsequenz = ".(int)$_POST['reload'].",
 			etchat_config_messages_im_chat = ".(int)$_POST['anz_mess'].",

@@ -42,8 +42,8 @@ class SysMessage extends EtChatConfig
 		// call parent Constructor from class EtChatConfig
 		parent::__construct();
 		
-		$dbObj->sqlSet("INSERT INTO {$this->_prefix}etchat_messages ( etchat_user_fid, etchat_text, etchat_text_css, etchat_timestamp, etchat_fid_room, etchat_privat)
-		VALUES ( 1, '".$message."', 'color:#".$_SESSION['etchat_v3_syscolor'].";font-weight:normal;font-style:normal;', '".date('U')."', ".$room_fid.", ".$privat.")");
+		$dbObj->sqlSet("INSERT INTO {$this->_prefix}etchat_messages ( etchat_user_fid, etchat_text, etchat_text_css, etchat_timestamp, etchat_fid_room, etchat_privat, etchat_user_ip)
+		VALUES ( 1, '".$message."', 'color:#".$_SESSION['etchat_'.$this->_prefix.'syscolor'].";font-weight:normal;font-style:normal;', '".date('U')."', ".$room_fid.", ".$privat.", '".$_SERVER['REMOTE_ADDR']."')");
 		
 		// unfortunately the PDO::lastInsertId() just works on MySQL and SQLITE, but not on PGSQL
 		if (!empty($dbObj->lastId)) $this->lastInsertedId = $dbObj->lastId;

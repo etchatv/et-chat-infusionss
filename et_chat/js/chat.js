@@ -14,10 +14,15 @@ var self = this;
 this.time_last_req=0;						//(privat) Zeit im Milisek seit der letzten AJAX-Anfrage
 this.time_last_send=0;						//(privat) Zeit im Milisek seit der letzten Message from User
 this.inactivity_message_flag=false;			//(privat) TRUE wenn bereits eine Systemwarnmeldung an den User gesendet wurde
+this.active_get_message_req=false;			//(privat) TRUE wenn gerade eine ReloaderMessage Anfrage ueber AJAX laeuft
 this.interval_for_inactivity=1800000;		//(public) Wie lange darf der User nichts schreiben bis er aus dem Chat rausfliegt
+this.allowed_privates_in_separate_win = true;
+this.allowed_privates_in_chat_win = true;
 this.anbindung_an_userverwaltung;			//(privat) Wenn die Userverwaltung benutzt wird, soll der Mon kein PW ändern
 this.reload_interval;						//(public) Reloadzeit
 this.show_history_all_user;					//(public) [bool] Soll die History fuer alle Gezeigt wrden oder nur Admin/Mod-Team
+this.allow_nick_registration;				//(public) [bool] Registrierung der Namen erlauben
+this.set_sys_messages = true;				//(public) [bool] Show sys messages
 this.messages_im_chat;						//(public) Anz. der Mess. im Fenster
 this.username="";							//(public)
 this.user_id="";							//(public)
@@ -39,7 +44,13 @@ this.win_history;							//(privat) Window History
 this.jsonObjUserGlobal;						//(privat) Message JSON Array.
 this.userPrivilegienGlobal;					//(public) Privilegien z.B.: Gast,User,Moderator,Admin
 this.privat_an;								//(privat) Privat an User-ID
-this.sound_status;							//(privat) Wann soll der Sound kommen, bei allen Messages oder nur Privat
+this.sound_status="none";					//(privat) Wann soll der Sound kommen, bei allen Messages oder nur Privat
+this.soundManager;
+this.audioBuffer = Array();
+this.random_user_number;					//(public) generated user number to protect http GET requests
+this.title = document.title;
+this.intv_title_blink; 
+this.window_focused = true;
 // (Stop) Deklaration globaler Attribute im Class -------------------------------------------------------------
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -47,6 +58,26 @@ this.sound_status;							//(privat) Wann soll der Sound kommen, bei allen Messag
 // (Start) Konstruktor der Class ET_Chat wird onLoad ausgefuehrt -----------------------------------------------
 this.start = function(){
 
+	if ( Prototype.Browser.IE ) {
+		document.onfocusin = function(e) {
+			self.window_focused = true;
+			try{ window.clearInterval(self.intv_title_blink) } catch (e) {/*nix*/}
+			document.title = self.title;
+		}
+		document.onfocusout = function(e) {
+			self.window_focused = false;
+		}
+	} else {	
+		window.onfocus = function(e) {
+			self.window_focused = true;
+			try{ window.clearInterval(self.intv_title_blink) } catch (e) {/*nix*/}
+			document.title = self.title;
+		}
+		window.onblur = function(e) {
+			self.window_focused = false;
+		}
+	}
+					
 	// Adminbereich
 	if (self.userPrivilegienGlobal=="admin"){
 		$("form_right").innerHTML+="&nbsp;&nbsp;&nbsp;<img id=\"link_admin\" class=\"img_button\" src=\"img/admin.png\" width=\"32\" height=\"32\" border=\"0\" alt=\"Admin\" title=\"Admin\">";
@@ -61,9 +92,6 @@ this.start = function(){
 
 	AjaxReadRequest();	// Erste Messageabfrage beim Start
 	setInterval(AjaxReadRequest, this.reload_interval); // Interval fuer regelmaesige Abfragen setzen.
-
-	// Sound beim Einsteigen abschalten
-	Sound.disable();
 
 	// autocomplete="off" ist nicht XHTML valide deshalb ueber JS
 	$("message").setAttribute("autocomplete", "off");
@@ -83,7 +111,7 @@ this.start = function(){
 			// Wenn das Fenster noch nicht existiert, muss es erzeugt und befuellt werden
 			if (typeof self.win_prop!="object"){
 			// Fensterinstanz
-		    self.win_prop = new Window({className: self.win_style, width:210, height:120, top:eval(self.mouse_top-185), left:eval(self.mouse_left-120), resizable: false, showEffect:Effect.Appear, hideEffect: Effect.Fade, showEffectOptions: {duration:0.5}, hideEffectOptions: {duration:0.5}, draggable: true, minimizable: false, maximizable: false, destroyOnClose: false, opacity: 1});
+		    self.win_prop = new Window({className: self.win_style, width:260, height:170, top:eval(self.mouse_top-235), left:eval(self.mouse_left-120), resizable: false, showEffect:Effect.Appear, hideEffect: Effect.Fade, showEffectOptions: {duration:0.5}, hideEffectOptions: {duration:0.5}, draggable: true, minimizable: false, maximizable: false, destroyOnClose: false, opacity: 1});
 
 			// History anzeigen?
 			if(self.show_history_all_user || self.userPrivilegienGlobal=="admin" || self.userPrivilegienGlobal=="mod")
@@ -91,14 +119,18 @@ this.start = function(){
 			else
 				var history_link_content = '';
 
-			// PW aenderung fuer Mods anzeigen?
-			if( self.userPrivilegienGlobal=="mod")
+			// PW aenderung fuer Mods und User anzeigen?
+			if( self.userPrivilegienGlobal=="mod" || self.userPrivilegienGlobal=="user" ){
 				var pwchange_link_content = '<div style=\"margin-bottom:3px;\"><img src="img/textfield_key.png" align="left" />&nbsp;&nbsp;<a href="#" id="pwchange_mod">'+lang_start_prop_link_6+'</a>\
 											<form id="pwchange_form" style="display:inline;"><div id="pwchange_div" style="display:none;"><div style="padding-top: 2px;">'+lang_start_prop_link_7+' <input type="password" id="pwchange_field" size="6" /> <a href="#" id="pwchange_mod_ok">OK</a></div></div></form></div>';
+				if(self.userPrivilegienGlobal=="user")
+					pwchange_link_content+='<div style=\"margin-bottom:3px;\"><img src="img/key_delete.png" align="left" />&nbsp;&nbsp;<a href="#" id="unregister_name">'+lang_start_prop_link_10+'</a></div>';
+			
+			}else if( self.userPrivilegienGlobal=="gast" && self.allow_nick_registration)
+				var pwchange_link_content = '<div style=\"margin-bottom:3px;\"><img src="img/textfield_key.png" align="left" />&nbsp;&nbsp;<a href="#" id="register_name">'+lang_start_reg_link+'</a></div>';
 			else
 				var pwchange_link_content = '';
-
-
+				
 			// Status Auswahl generieren
 			var status_link_content ='<div><img src="img/status_online.png" align="left" />&nbsp;&nbsp;<a href="#" id="stat_mod">'+lang_statuslink+'</a>\
 									<div style="display:none;" id="stat_change_div"><div style="padding-top: 2px; padding-bottom: 4px; padding-left: 12px;">\n';
@@ -110,30 +142,118 @@ this.start = function(){
 			status_link_content +='</div></div><div style=\"margin-bottom:3px;\"></div>';
 
 
+			var sys_mess_checked = (self.set_sys_messages) ? 'checked' : '';
+			
 			// Fenster fuellen
 			self.win_prop.setHTMLContent('<div id="prop_list"><div style=\"margin-bottom:3px;\"><img src="img/monitor_lightning.png" align="left" />&nbsp;&nbsp;<a href="#" id="cls">'+lang_start_prop_link_1+'</a></div>\
 			'+history_link_content+'\
 			'+pwchange_link_content+'\
 			'+status_link_content+'\
-			<div style=\"margin-bottom:1px;\"><img src="img/sound_mute.png" align="left" id="sound_icon" />&nbsp;&nbsp;'+lang_start_prop_link_3+'</div>\
-			<div><img src="img/space.gif" align="left" width="16"/>&nbsp;&nbsp;<a href="#" id="sound_on">'+lang_start_prop_link_4+'</a> | <a href="#" id="sound_privat">'+lang_start_prop_link_8+'</a> | <a href="#" id="sound_off">'+lang_start_prop_link_5+'</a></div></div>');
+			<div style="padding-bottom:5px;"><form id="set_sys_messages_form" style="display:inline;"><input type="checkbox" id="set_sys_messages" value="1" '+sys_mess_checked+' /> <a href="#" id="set_sys_messages_a"> '+lang_start_prop_link_9+'</a></form></div>\
+			<div style=\"margin-bottom:1px;\"><img src="img/sound_'+self.sound_status+'.png" align="left" id="sound_icon" />&nbsp;&nbsp;'+lang_start_prop_link_3+'</div>\
+			<div><img src="img/space.gif" align="left" width="16"/>&nbsp;&nbsp;<a href="#" id="sound_on">'+lang_start_prop_link_4+'</a> | <a href="#" id="sound_privat">'+lang_start_prop_link_8+'</a> | <a href="#" id="sound_off">'+lang_start_prop_link_5+'</a></div></div>\
+			');
             // Das befuellte Fenster ueberwachen
             Event.observe('prop_list', 'click', function(event){
             	if(Event.element(event).id!="" && Event.element(event).id!='prop_list' && Event.element(event).id!='sound_icon'){
-                                           if (Event.element(event).id=="cls") { $('chatinhalt').innerHTML=''; self.win_prop.close(); $('message').focus(); }
-                                           if (Event.element(event).id=="history") { self.historyWindow(1); self.win_prop.close(); }
-                                           if (Event.element(event).id=="pwchange_mod_ok") submit_pw();
-                                           if (Event.element(event).id=="stat_mod") Effect.toggle('stat_change_div', 'blind', {duration: 0.4});
+					if (Event.element(event).id=="cls") { $('chatinhalt').innerHTML=''; self.win_prop.close(); $('message').focus(); }
+					if (Event.element(event).id=="pwchange_mod_ok") submit_pw();
+					if (Event.element(event).id=="history") { self.historyWindow(1); self.win_prop.close(); }
+					if (Event.element(event).id=="stat_mod") Effect.toggle('stat_change_div', 'blind', {duration: 0.4});
+					if (Event.element(event).id=="set_sys_messages" || Event.element(event).id=="set_sys_messages_a") {
+						if (Event.element(event).id=="set_sys_messages_a"){
+							if($("set_sys_messages").checked) 
+								$("set_sys_messages").checked=false;
+							else 
+								$("set_sys_messages").checked=true;							
+						}
+						var sys_mess = ($("set_sys_messages").checked) ? 1 : 0;
+						new Ajax.Request("./?ChangeStatus",	{ postBody: "sys_messages="+sys_mess });
+						self.win_prop.close(); 
+						$('message').focus();
+					}
+					if (Event.element(event).id.slice(0, 7)=="status_") submit_status(Event.element(event).id, $(Event.element(event).id).innerHTML);
+					
+					if (Event.element(event).id=="pwchange_mod") {
+						Effect.toggle('pwchange_div', 'blind', {duration: 0.4});
+						$("pwchange_form").onsubmit = function(){return submit_pw();}
+					}
+					
 
-										   if (Event.element(event).id.slice(0, 7)=="status_") submit_status(Event.element(event).id, $(Event.element(event).id).innerHTML);
-
-										   if (Event.element(event).id=="pwchange_mod") {
-                                           		Effect.toggle('pwchange_div', 'blind', {duration: 0.4});
-                                           		$("pwchange_form").onsubmit = function(){return submit_pw();}
-                                           }
-                                           if (Event.element(event).id=="sound_off") { Sound.disable(); $('sound_icon').src="img/sound_mute.png"; self.win_prop.close(); $('message').focus(); }
-                                           if (Event.element(event).id=="sound_on") {self.sound_status='all'; Sound.enable(); $('sound_icon').src="img/sound_none.png"; self.win_prop.close(); $('message').focus(); }
-										   if (Event.element(event).id=="sound_privat") {self.sound_status='privat'; Sound.enable(); $('sound_icon').src="img/sound_privat.png"; self.win_prop.close(); $('message').focus(); }
+					if (Event.element(event).id=="register_name") {
+						
+						var temp_user_name = (self.username.length > 20) ? self.username.slice(0, 20)+"..." : self.username;
+						
+						var win_register_user = new Window({className: self.win_style, title:lang_start_reg_title+' "'+temp_user_name+'"', width:250, height:130, top:eval(self.mouse_top-185), left:eval(self.mouse_left-120), resizable: false, showEffect:Effect.Appear, hideEffect: Effect.Fade, showEffectOptions: {duration:0.3, afterFinish:function(effect){self.win_prop.close(); $('pw_register_field').focus(); }}, hideEffectOptions: {duration:0.3}, draggable: true, minimizable: false, maximizable: false, destroyOnClose: true, opacity: 1});
+						win_register_user.setHTMLContent('<div id="register_formular"><form id="register_form" style="display:inline;"><div>'+lang_start_reg_befor_registering+'<hr size="1"><table><tr><td>'+lang_start_reg_pw1+'</td><td><input type="password" id="pw_register_field" size="6" /></td></tr><tr><td>'+lang_start_reg_pw2+'</td><td><input type="password" id="pw_register_field2" size="6" /></td></tr><tr><td colspan="2"><br /><a href="#" id="make_register">'+lang_start_reg_button_register+'</a>&nbsp;&nbsp;&nbsp;<a href="#" id="cancel_register">'+lang_start_reg_button_cancel+'</a></td></tr></div></form></div>');
+						Event.observe('register_formular', 'click', function(event){
+							if(Event.element(event).id=="cancel_register") win_register_user.close();
+							if(Event.element(event).id=="make_register") {
+							
+								if ($('pw_register_field').value==$('pw_register_field2').value)
+									new Ajax.Request(
+										"./?ChangePw",
+										{
+										onSuccess: function(result){
+											if (result.responseText==1){
+												win_register_user.setHTMLContent('<div id="register_formular">'+lang_start_reg_after_registering+'<br /><br /><a href="./?Logout&random_user_number='+self.random_user_number+'&r='+$("room").value+'">'+lang_start_reg_after_registering_link+'</a></div>');
+											}
+											else alert('Error!\n\n'+result.responseText);
+										},
+										postBody: "user_pw="+$('pw_register_field').value
+										}
+									);
+								else{
+									alert(lang_start_reg_error);
+									$('pw_register_field').value='';
+									$('pw_register_field2').value='';
+									$('pw_register_field').focus();
+								}
+							}
+						});
+						win_register_user.show();
+						$("register_form").onsubmit = function(){return false;}
+					}
+					
+					
+					if (Event.element(event).id=="unregister_name") {
+						
+						var temp_user_name = (self.username.length > 20) ? self.username.slice(0, 20)+"..." : self.username;
+						
+						var win_unregister_user = new Window({className: self.win_style, title:lang_remove_pw_win_title+' "'+temp_user_name+'"', width:320, height:180, top:eval(self.mouse_top-225), left:eval(self.mouse_left-170), resizable: false, showEffect:Effect.Appear, hideEffect: Effect.Fade, showEffectOptions: {duration:0.3, afterFinish:function(effect){self.win_prop.close(); $('pw_unregister_field').focus(); }}, hideEffectOptions: {duration:0.3}, draggable: true, minimizable: false, maximizable: false, destroyOnClose: true, opacity: 1});
+						win_unregister_user.setHTMLContent('<div id="unregister_formular"><form id="unregister_form" style="display:inline;"><div>'+lang_remove_pw_win_text_1+'<br><br><b>'+lang_remove_pw_win_text_2+'</b><br>'+lang_remove_pw_win_text_3+'<hr size="1"><table><tr><td>'+lang_start_reg_pw1+'</td><td><input type="password" id="pw_unregister_field" size="9" /></td></tr><tr><td colspan="2"><br /><a href="#" id="make_unregister">'+lang_remove_pw_win_button+'</a>&nbsp;&nbsp;&nbsp;<a href="#" id="cancel_unregister">'+lang_start_reg_button_cancel+'</a></td></tr></div></form></div>');
+						Event.observe('unregister_formular', 'click', function(event){
+							if(Event.element(event).id=="cancel_unregister") win_unregister_user.close();
+							if(Event.element(event).id=="make_unregister") {
+							
+								if (!$('pw_unregister_field').value.empty()){
+									var pw_unregister = $('pw_unregister_field').value;
+									$("unregister_formular").update('<img src="img/ajax-loader.gif">');
+									new Ajax.Request(
+										"./?UnregisterPw",
+										{
+										onSuccess: function(result){
+											$("unregister_formular").update('Logout...');
+											if (result.responseText==1){
+												location.href="./?Logout&random_user_number="+self.random_user_number+"&r="+$("room").value;
+											}
+											else $("unregister_formular").update(''+result.responseText);
+										},
+										postBody: "user_pw="+pw_unregister
+										}
+									);
+								}
+							}
+						});
+						win_unregister_user.show();
+						$("unregister_form").onsubmit = function(){return false;}
+					}
+					
+					
+					
+					if (Event.element(event).id=="sound_off") {self.sound_status='none'; $('sound_icon').src="img/sound_none.png"; self.win_prop.close(); $('message').focus(); }
+					if (Event.element(event).id=="sound_on") {self.sound_status='all'; $('sound_icon').src="img/sound_all.png"; self.win_prop.close(); $('message').focus(); }
+					if (Event.element(event).id=="sound_privat") {self.sound_status='privat'; $('sound_icon').src="img/sound_privat.png"; self.win_prop.close(); $('message').focus(); }
                 }
 			});
 			}
@@ -143,7 +263,7 @@ this.start = function(){
 			var submit_pw = function(){
 				if ($('pwchange_field').value.length<1) return false;
 				new Ajax.Request(
-                 		"./?ChangeModPw",
+                 		"./?ChangePw",
                 		 {
                		  		onSuccess: function(result){
                		  			if (result.responseText==1){
@@ -190,7 +310,7 @@ this.start = function(){
 
 	// Logout
 	$("link_logout").onclick = function(){
-		 location.href="./?Logout&r="+$("room").value;
+		 location.href="./?Logout&random_user_number="+self.random_user_number+"&r="+$("room").value;
 	}
 
 	// MausKoord fuer Fenster und Tooltips
@@ -233,31 +353,7 @@ this.start = function(){
 	//Lade Fensterinhalt zum Darstellen des Smileys
 	new Ajax.Request("./?Smileys",{onSuccess:function(result){self.win_smileys_content=result.responseText;}});
 	//Click auf Smiley-Icon
-	$("link_smileys").onclick = function(){
-
-			// Wenn das Fenster noch nicht existiert, muss es erzeugt und befuellt werden
-			if (typeof self.win_smileys!="object"){
-			// Fensterinstanz
-		    self.win_smileys = new Window({className: self.win_style, width:210, height:100, top:eval(self.mouse_top-165), left:eval(self.mouse_left-120), resizable: false, showEffect:Effect.Appear, hideEffect: Effect.Fade, showEffectOptions: {duration:0.5}, hideEffectOptions: {duration:0.5}, draggable: true, minimizable: false, maximizable: false, destroyOnClose: false, opacity: 1});
-			// Fenster fuellen
-			self.win_smileys.setHTMLContent('<div id="smileys_list">'+self.win_smileys_content+'</div>');
-            // Das befuellte Fenster ueberwachen
-            Event.observe('smileys_list', 'click', function(event){
-            	if(Event.element(event).id!="" && Event.element(event).id!='smileys_list'){
-                                           $('message').value +=Event.element(event).id;
-                                           $('message').focus();
-                                           // Nach Auswahl des Smileys einfach Fenster schliessen
-                                           self.win_smileys.close();
-                }
-			});
-			}
-            // Ist dass Fenster bereits sichtbar?
-            if($(self.win_smileys.getId()).style.display=='none'){
-                	self.win_smileys.show();
-                	self.win_smileys.toFront();
-            }
-            else self.win_smileys.close();
-         }
+	$("link_smileys").onclick = function(){ open_close_smileys_win('message'); }
 
     //Lade Fensterinhalt zum Darstellen des Farbenfensters
 	new Ajax.Request("./?Colorizer",{onSuccess:function(result){self.win_color_content=result.responseText;}});
@@ -269,7 +365,7 @@ this.start = function(){
 
 		// Wenn das Fenster noch nicht existiert, muss es erzeugt und befuellt werden
 		if (typeof self.win_color!="object"){
-		    self.win_color = new Window({className: self.win_style, width:350, height:200, top:eval(self.mouse_top-265), left:eval(self.mouse_left-180), resizable: false, showEffect:Effect.Appear, hideEffect: Effect.Fade, showEffectOptions: {duration:0.5}, hideEffectOptions: {duration:0.5}, draggable: true, minimizable: false, maximizable: false, destroyOnClose: false, opacity: 1});
+		    self.win_color = new Window({className: self.win_style, width:350, height:205, top:eval(self.mouse_top-265), left:eval(self.mouse_left-180), resizable: false, showEffect:Effect.Appear, hideEffect: Effect.Fade, showEffectOptions: {duration:0.5}, hideEffectOptions: {duration:0.5}, draggable: true, minimizable: false, maximizable: false, destroyOnClose: false, opacity: 1});
 			self.win_color.setHTMLContent(self.win_color_content);
 
 			//(Start) Font Art auswaehlen und in hidden-Inputs eintragen --------------------
@@ -341,9 +437,86 @@ this.start = function(){
 
 
 	}
+	
+	
+	// Init Sound --------
+	try{
+		window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.soundManager=new AudioContext();
+
+		 //creating a new request
+		var a_request1 = new XMLHttpRequest();
+		a_request1.open("GET",'./sound/sound_privat.mp3',true);
+		a_request1.responseType= 'arraybuffer';
+		a_request1.onload = function(){
+			//take the audio from http request and decode it in an audio buffer
+			self.soundManager.decodeAudioData(a_request1.response, function(buffer){
+				self.audioBuffer.push(buffer);
+			});
+		
+		};
+		a_request1.send();
+			
+		var a_request2 = new XMLHttpRequest();
+		a_request2.open("GET",'./sound/sound_all.mp3',true);
+		a_request2.responseType= 'arraybuffer';
+		a_request2.onload = function(){
+			//take the audio from http a_request2 and decode it in an audio buffer
+			self.soundManager.decodeAudioData(a_request2.response, function(buffer){
+				self.audioBuffer.push(buffer);
+			});
+		
+		};
+		a_request2.send();
+	
+    } catch(e){
+		console.log("No audio-support from browser!");
+	}
 };
 // (Stop) Konstruktor der Class ET_Chat wird onLoad ausgefuehrt ------------------------------------------------
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+
+var open_close_smileys_win = function(input_field_name){
+
+			// Wenn das Fenster noch nicht existiert, muss es erzeugt und befuellt werden
+			if (typeof self.win_smileys!="object"){
+				// Fensterinstanz
+				self.win_smileys = new Window({className: self.win_style, width:210, height:100, top:eval(self.mouse_top-165), left:eval(self.mouse_left-120), resizable: false, showEffect:Effect.Appear, hideEffect: Effect.Fade, showEffectOptions: {duration:0.5}, hideEffectOptions: {duration:0.5}, draggable: true, minimizable: false, maximizable: false, destroyOnClose: false, opacity: 1});
+				// Fenster fuellen
+				self.win_smileys.setHTMLContent('<div id="smileys_list">'+self.win_smileys_content+'</div>');
+			} else {
+				if($(self.win_smileys.getId()).style.display=='none')
+					self.win_smileys.setLocation(eval(self.mouse_top-165), eval(self.mouse_left-120))
+			}
+
+			try {Event.stopObserving('smileys_list', 'click');} catch(e){}
+			
+			// Das befuellte Fenster ueberwachen
+            Event.observe('smileys_list', 'click', function(event){
+            	if(Event.element(event).id!="" && Event.element(event).id!='smileys_list'){
+											// Nach Auswahl des Smileys einfach Fenster schliessen
+                                           self.win_smileys.close();
+                                           $(input_field_name).value +=Event.element(event).id;
+                                           $(input_field_name).focus();
+                                           
+                }
+			});
+
+            // Ist dass Fenster bereits sichtbar?
+            if($(self.win_smileys.getId()).style.display=='none'){
+                	self.win_smileys.show();
+                	self.win_smileys.toFront();
+            }
+            else self.win_smileys.close();
+}			
+			
+			
+
+
+
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // (Start) Schliesse alle info wins ------------------------------------------------------
@@ -442,9 +615,9 @@ this.dragSplitpane=function(){
 // (Start) Hierhin wird das Erg. der AJAx Abfrage nach neuen Messages im Chat uebertragen und dargestellt -----
 var receiveResultJSON = function(ajaxResultJSON) {
 
-    // Das Schreibfeld nach Versand wieder freigeben und noch 0,3 Sek abwarten, wirkt besser. ;-)
-    if ($('message').disabled) setTimeout(let_write, 300);
-
+	// Die Uebertragung via AJAX ist beendet, weitere Anfragen duerfen gestartet werden
+	self.active_get_message_req=false;
+	
 	// uebertragenes als Text klassifizieren
     var jsonInhalt = ajaxResultJSON.responseText;
 
@@ -470,6 +643,10 @@ var receiveResultJSON = function(ajaxResultJSON) {
 		// SoundFlag damit der Sound nur gespielt wird wenn dies eine fremde Message ist.
 		var play_sound=false;
 
+		
+		var win_id1 = new Array();
+		var count_priv_win = 0;
+		
 		// Alle Elemende des uebertragenen MessageArrays durchlaufen und ausgeben
       	for (var i=0; i<jsonObj.data.length; i++){
         	with(jsonObj.data[i]){
@@ -494,9 +671,9 @@ var receiveResultJSON = function(ajaxResultJSON) {
         		if (privat=='0'){
 					if (user_id==self.user_id) var userstyle_clickable ="";
 					else var userstyle_clickable = "id=\"inflblock_"+user_id+"\" style=\"cursor:pointer\"";
+
+					$("a"+id).innerHTML = "<div class=\"mess_back\"><i>("+time+")</i> "+gender_icon+priv_icon+" <b "+userstyle_clickable+">"+user+"</b>: <span style=\""+css+"\">"+message+"</span></div>";
 					
-        			$("a"+id).innerHTML = "<div class=\"mess_back\"><i>("+time+")</i> "+gender_icon+priv_icon+" <b "+userstyle_clickable+">"+user+"</b>: <span style=\""+css+"\">"+message+"</span></div>";
-                
 				}else{
 					if (!id.empty()){
 						if (user_id==self.user_id)
@@ -506,53 +683,95 @@ var receiveResultJSON = function(ajaxResultJSON) {
 					}
 					else{
 						// privat win
-						var win_id1=user_id+'00000'+privat;
+						win_id1[count_priv_win]=user_id+'00000'+privat;
 						var win_id2=privat+'00000'+user_id;
-						if (typeof self.win_private[win_id1]!="object" && typeof self.win_private[win_id2]!="object"){
+					
+						if (typeof self.win_private[win_id1[count_priv_win]]!="object" && typeof self.win_private[win_id2]!="object"){
 						
 							//window:kskdskd
 							if (user_id==self.user_id) { var privat_win_opponent = self.privat_an; var privat_win_opponent_id = privat;}
 							else { var privat_win_opponent = user; var privat_win_opponent_id = user_id;}
 							
-							self.win_private[win_id1] = new Window({className: self.win_style, title: "Privat mit "+privat_win_opponent,  width:380, height:200, top:eval(50 + Math.round(Math.random()*50)), left:eval(50 + Math.round(Math.random()*50)), resizable: true, showEffect:Effect.Appear, hideEffect: Effect.Fade, showEffectOptions: {duration:0.5, afterFinish:function(effect){ $('pivate_win_'+int_id).scrollTop = $('pivate_win_'+int_id).scrollHeight }}, hideEffectOptions: {duration:0.5}, draggable: true, minimizable: false, maximizable: false, destroyOnClose: false, opacity: 1});
-							self.win_private[win_id1].setHTMLContent('<div id="pivate_win_'+win_id1+'" class="privat_mesages_window"></div><div id="pivate_win_resp_'+win_id1+'" class="privat_win_button">'+lang_receiveResultJSON_priv_3+'</div></div>');
-							$('pivate_win_resp_'+win_id1).onclick = function(){ changeUserEvent("privatwin_"+privat_win_opponent_id); }
-		
+							self.win_private[win_id1[count_priv_win]] = new Window({className: self.win_style, title: "Privat mit "+privat_win_opponent,  width:380, height:200, top:eval(50 + Math.round(Math.random()*50)), left:eval(50 + Math.round(Math.random()*50)), resizable: true, showEffect:Effect.Appear, hideEffect: Effect.Fade, showEffectOptions: {duration:0.5, afterFinish:function(effect){ $('pivate_win_'+int_id).scrollTop = $('pivate_win_'+int_id).scrollHeight }}, hideEffectOptions: {duration:0.5}, draggable: true, minimizable: false, maximizable: false, destroyOnClose: false, opacity: 1});
+							self.win_private[win_id1[count_priv_win]].setHTMLContent('<div id="pivate_win_'+win_id1[count_priv_win]+'" class="privat_mesages_window"></div><div><form style="display:inline" id="win_form_'+win_id1[count_priv_win]+'"><table cellspacing="0" cellpadding="0"><tr><td><input type="hidden" id="this_win_'+self.win_private[win_id1[count_priv_win]].getId()+'" value="'+win_id1[count_priv_win]+'"><input type="text" class="private_message_field" id="message_win_'+win_id1[count_priv_win]+'" ></td><td><img src="img/Checked_small.png" id="submit_img_'+win_id1[count_priv_win]+'" style="padding-left: 4px; cursor:pointer;"></td><td><img src="img/Smiley_small.png" id="smileys_img_'+win_id1[count_priv_win]+'" style="padding-left: 4px; cursor:pointer;"></td></tr></table></form></div></div>');
+
 							// Set up a windows observer, check ou debug window to get messages
 							myObserver = {
 								onEndResize: function(eventName, win) {
-								if (win == self.win_private[win_id1]) 
-									$("pivate_win_"+win_id1).style.height=eval(win.getSize().height - 30)+"px";								
+								//alert(win.getId());
+								//if (win == self.win_private[win_id1[count_priv_win]]) 
+									$("pivate_win_"+$F('this_win_'+win.getId())).style.height=eval(win.getSize().height - 33)+"px";								
 								},
 								onClose: function(eventName, win) { $("message").focus(); }
 							}
 							Windows.addObserver(myObserver);
+							
+							$('win_form_'+win_id1[count_priv_win]).onsubmit = function(e) {
+								var tid = this.id.replace('win_form_','message_win_');
+								self.send2privatwin(tid, user_id);
+								return false;
+							};
+							$('submit_img_'+win_id1[count_priv_win]).onclick = function(e) {
+								var tid = this.id.replace('submit_img_','message_win_');
+								self.send2privatwin(tid, user_id);
+								return false;
+							};
+							$("smileys_img_"+win_id1[count_priv_win]).onclick = function(e){
+								var tid = this.id.replace('smileys_img_','message_win_');
+								open_close_smileys_win(tid); 
+							}
+							$('message_win_'+win_id1[count_priv_win]).onfocus = function(e) {
+								this.style.color = $('message').style.color;
+								this.style.fontWeight = $('message').style.fontWeight;
+								this.style.fontStyle = $('message').style.fontStyle;				
+							}
 						}
-						var int_id = (typeof self.win_private[win_id1]=="object") ? win_id1 : win_id2;
+						
+						var int_id = (typeof self.win_private[win_id1[count_priv_win]]=="object") ? win_id1[count_priv_win] : win_id2;
 						$('pivate_win_'+int_id).innerHTML+="<div>"+gender_icon+priv_icon+" <b>"+user+"</b>: <span style=\""+css+"\">"+message+"</span></div>";
 
 						try{self.win_private[int_id].show()} catch(w){}
 						
-						$('pivate_win_'+int_id).scrollTop = $('pivate_win_'+int_id).scrollHeight; 
+						count_priv_win++;
 					}
 				}
                 // Zuerst das neue DIV verstecken um es spaeter mit Effekt zu visualisieren
                 if (!id.empty()) Element.hide('a'+id);
-
+				
                 // Hier wird festgestellt ob die angekommenen Messages alle von dem Benutzer sind. Damit der Sound nur abgespielt wird wenn
                 // ein Anderer eine Message gesenden hat.
                 if (user_id!=self.user_id) {
-					if (self.sound_status=="all") play_sound=true;
-					if (self.sound_status=="privat" && privat!='0') play_sound=true;
+					if (self.sound_status=="all") {
+						play_sound=true;
+						sound_file = (privat!='0') ? 0 : 1;		
+					}
+					if (self.sound_status=="privat" && privat!='0') {
+						play_sound=true;
+						sound_file = 0;
+					}
+					if (self.sound_status=="none") 
+						play_sound=false;
+						
+					// Aktiviere Blink im Title
+					if(!self.window_focused && play_sound){
+						try{ window.clearInterval(self.intv_title_blink) } catch (e) {/*nix*/}
+						self.intv_title_blink = window.setInterval(function () {
+							document.title = (document.title == lang_titleAlert) ? self.title : lang_titleAlert;
+						}, 1000);
+					}
 				}
 
         	}
         }
 
 		// sound ---------------------------
-        //Sound.enable();
-        if(play_sound) Sound.play('sound/sound.mid',{replace:false});
-
+		//alert(self.sound_status+ ' '+ play_sound);
+        if(play_sound){    
+			var audio_source = self.soundManager.createBufferSource();
+			audio_source.buffer = self.audioBuffer[sound_file];
+			audio_source.connect(self.soundManager.destination);  
+			audio_source.start(0);
+		}
 		// Alle erzeugten neuen Datensaetze der Rheie nach visualisieren
 		// Effect.Grow
 		// Effect.SlideDown
@@ -611,7 +830,7 @@ var AjaxReadRequest = function(){
 				self.inactivity_message_flag=true;
 			};
 			// Pruefung wie lange der User schweigt und rauswurf
-			if(time_now - self.time_last_send > self.interval_for_inactivity) location.href="./?Logout&reason=timeout&r="+$("room").value;
+			if(time_now - self.time_last_send > self.interval_for_inactivity) location.href="./?Logout&random_user_number="+self.random_user_number+"&reason=timeout&r="+$("room").value;
 		}
 
 		// Dies verhindert dass nach einem DatenversendeRequest die Schleife sofort einen Datenholrequest
@@ -620,13 +839,19 @@ var AjaxReadRequest = function(){
 
 			self.time_last_req = time_now;
 
-			var myAjaxObj= new Ajax.Request(
-                 "./?ReloaderMessages",
-                 {
-                 onSuccess: receiveResultJSON,
-                 postBody: "room="+$("room").value+"&privat="+encodeURIComponent($("privat").value)
-                 }
-			);
+			// wenn keine AJAX-Anfrage aktiv ist, kann eine ausgeloest werden, sonst warten
+			if(!self.active_get_message_req){
+				self.active_get_message_req = true;
+			
+				var myAjaxObj= new Ajax.Request(
+					"./?ReloaderMessages",
+					{
+					onSuccess: receiveResultJSON,
+					onFailure: function() { self.active_get_message_req = false; },
+					postBody: "room="+$("room").value+"&privat="+encodeURIComponent($("privat").value)
+					}
+				);
+			}
 		}
 };
 // (Stop) Anfrage an den Reloader wird im Interval this.reload_interval aufgerufen ----------------------------
@@ -644,15 +869,32 @@ this.send = function()
 		// Ohme einen Flag bekommt er staendige Mlendungen siehe Zeile 373
 		this.inactivity_message_flag=false;
 
+		
+		//check, ob der User online ist
+		if($F("privat")>0 && !self.userOnlineNow($F("privat"))){
+			var win_warning_user_away = new Window({className: self.win_style, title: lang_warning_user_away_2_1, width:280, height:70, resizable: false, showEffect:Effect.Appear, hideEffect: Effect.Fade, showEffectOptions: {duration:0.5}, hideEffectOptions: {duration:0.5}, draggable: true, minimizable: false, maximizable: false, destroyOnClose: true, opacity: 1});
+			win_warning_user_away.setHTMLContent("<div style=\"padding:3px;\"><span><img src=\"img/messagebox_warning.png\" style=\"padding-right:10px;\" width=\"22\" height=\"22\" align=\"left\" />"+lang_warning_user_away_2_2+"</span></div>");
+			win_warning_user_away.showCenter();
+			setTimeout(function(){ try{win_warning_user_away.close();} catch(e){/*nix */} }, 10000);
+		}
+		
+		
+		/*
 		try{
 			if (!$('privat_modus').value.empty())
 				$('message').value = $('privat_modus').value + $('message').value;
         } catch(e){}
+		*/
 		
 		var myAjaxObj= new Ajax.Request(
                  "./?ReloaderMessages",
                  {
-                 onSuccess: receiveResultJSON,
+                 onSuccess: function(erg) {
+					// Das Schreibfeld nach Versand wieder freigeben und noch 0,3 Sek abwarten, wirkt besser. ;-)
+					if ($('message').disabled) setTimeout(let_write, 300);
+					
+					receiveResultJSON(erg);
+				},
                  postBody: $("message_form").serialize()
                  }
 		);
@@ -665,6 +907,76 @@ this.send = function()
 };
 // (Stop) Anfrage an den Reloader mit Datenuebergabe vom User, also beim Sender der Massage in den Chat --------
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// (Start) Anfrage an den Reloader mit Datenuebergabe vom User, nur für PrivatWin -------
+this.send2privatwin = function(message_input_field, privat)
+{
+	
+		//check, ob der User online ist
+		if(!self.userOnlineNow(privat)){
+			var win_p = message_input_field.replace(/message_win_/g, 'pivate_win_');
+			$(win_p).innerHTML+="<div class=\"privat_ausg_an\" style=\"padding:3px;\"><span><b>"+lang_warning_user_away_1_1+"</b><br />"+lang_warning_user_away_1_2+"</span></div>";
+		}
+		
+		var AktuellesDatum=new Date();
+		this.time_last_req = this.time_last_send = Date.parse(AktuellesDatum);
+		// Damit in Falle einer zu langen Inaktivitaet der User informiert wird.
+		// Ohme einen Flag bekommt er staendige Mlendungen siehe Zeile 373
+		this.inactivity_message_flag=false;
+
+		if($(message_input_field).disabled) return false;
+		
+		var message = "/window: " + $(message_input_field).value; 
+		
+		$(message_input_field).value='';
+		
+		message = decodeURIComponent((message + '').replace(/\&/g, '%26').replace(/\+/g, '%2B').replace(/\%/g, '%25'));
+		
+		var myAjaxObj= new Ajax.Request(
+                "./?ReloaderMessages",
+                {
+                onSuccess: function(erg) {
+					if ($(message_input_field).disabled) setTimeout(function(){
+						$(message_input_field).disabled = false;
+						$(message_input_field).value = '';
+						$(message_input_field).focus();	
+					}, 300);
+					
+					receiveResultJSON(erg);
+				},
+                postBody: "room="+$('room').value+"&message="+message+"&privat="+privat+"&bold="+$('bold').value+"&italic="+$('italic').value+"&color="+$('color').value
+                }
+		);
+		
+		// Nach Versand Feld deaktivieren
+         $(message_input_field).value = lang_send_1;
+         $(message_input_field).blur();
+         $(message_input_field).disabled = true;
+		 
+	return false;
+};
+// (Stop) Anfrage an den Reloader mit Datenuebergabe vom User, nur für PrivatWin -------
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// (Start) Ist dieser User in der aktuellen OnlineList? -------------------------------------------------------
+this.userOnlineNow = function (user_id){
+
+	for (var i=0; i < self.jsonObjUserGlobal.userOnline.length; i++)
+	   if (self.jsonObjUserGlobal.userOnline[i].user_id==user_id && self.jsonObjUserGlobal.userOnline[i].user_simg!="status_invisible")
+			return true;
+	
+	return false;
+
+}
+// (Start) Ist dieser User in der aktuellen OnlineList? -------------------------------------------------------
+// ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 
 
 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -763,7 +1075,7 @@ var updateUserOnlineAnzeige = function(ajaxResultJSON) {
   	// Hier wird der Array des Updaters ausgewertet
 	var jsonObj = self.jsonObjUserGlobal = ajaxResultJSON.responseText.evalJSON();
 	if(jsonObj==0){
-	setTimeout( updateUserOnlineAnzeigeAfterRoomChange ,1000);
+		//setTimeout( updateUserOnlineAnzeigeAfterRoomChange ,1000);
 	}
 	else{
 				var anzahl_der_user_im_chat=0;
@@ -777,18 +1089,28 @@ var updateUserOnlineAnzeige = function(ajaxResultJSON) {
             		inner_html +=lang_updateUserOnlineAnzeige_2+" "+ anzahl_der_user_im_chat+"<br/><br/>";
 
                  	for (var i=0; i<jsonObj.userOnline.length; i++){
-                                 if (aktuelle_room_id != jsonObj.userOnline[i].room_id)
-                                 {
-                                   aktuelle_room_id = jsonObj.userOnline[i].room_id;
-                                   //var anz_im_room=0;
-                                   //for (var ii=0; ii<jsonObj.userOnline.length; ii++) if (aktuelle_room_id==jsonObj.userOnline[ii].room_id) anz_im_room++;
-                                   var allowed = jsonObj.userOnline[i].room_allowed;
-                                   if (allowed==1) inner_html+="<div class=\"rooms\" id=\"room_"+aktuelle_room_id+"\">"+jsonObj.userOnline[i].room+"</div>";
-                                   else{
-                                   		if (allowed==2) inner_html+="<div class=\"rooms_not_allowed\" id=\"pwroom_"+aktuelle_room_id+"\">"+jsonObj.userOnline[i].room+"<img id=\"pwroomimg_"+aktuelle_room_id+"\" src=\"img/keylayer.png\" width=\"11\" height=\"11\" style=\"margin-left:5px;\" /></div>";
-    									else inner_html+="<div class=\"rooms_not_allowed\" id=\"notallowedroom_"+aktuelle_room_id+"\">"+jsonObj.userOnline[i].room+"<img id=\"notallowedroomimg_"+aktuelle_room_id+"\" src=\"img/locklayer.png\" width=\"11\" height=\"10\" style=\"margin-left:5px;\" /></div>";
-                                   }
-                                  }
+                                if (aktuelle_room_id != jsonObj.userOnline[i].room_id)
+                                {
+									aktuelle_room_id = jsonObj.userOnline[i].room_id;
+									
+									var anz_im_room=0;
+									for (var ii=0; ii<jsonObj.userOnline.length; ii++){
+										if (aktuelle_room_id == jsonObj.userOnline[ii].room_id && jsonObj.userOnline[ii].user_simg!='status_invisible') 
+											anz_im_room++;
+									}
+									
+									var show_anz_pro_room = (anz_im_room>0) ? " ("+anz_im_room+")" : "";
+									
+									
+									var allowed = jsonObj.userOnline[i].room_allowed;
+									if (allowed==1) inner_html+="<div class=\"rooms\" id=\"room_"+aktuelle_room_id+"\">"+jsonObj.userOnline[i].room+show_anz_pro_room+"</div>";
+									else{
+										if (allowed==2) 
+											inner_html+="<div class=\"rooms_not_allowed\" id=\"pwroom_"+aktuelle_room_id+"\">"+jsonObj.userOnline[i].room+show_anz_pro_room+"<img id=\"pwroomimg_"+aktuelle_room_id+"\" src=\"img/keylayer.png\" width=\"11\" height=\"11\" style=\"margin-left:5px;\" /></div>";
+										else 
+											inner_html+="<div class=\"rooms_not_allowed\" id=\"notallowedroom_"+aktuelle_room_id+"\">"+jsonObj.userOnline[i].room+show_anz_pro_room+"<img id=\"notallowedroomimg_"+aktuelle_room_id+"\" src=\"img/locklayer.png\" width=\"11\" height=\"10\" style=\"margin-left:5px;\" /></div>";
+									}
+                                }
 
                                  // Wenn admin
                                  var admin_user = (self.userPrivilegienGlobal=="admin" || self.userPrivilegienGlobal=="mod") ? " <img src=\"img/wand.png\" id=\"adminu_"+jsonObj.userOnline[i].user_id+"\" /> " : "";
@@ -858,19 +1180,14 @@ var updateUserOnlineAnzeige = function(ajaxResultJSON) {
     }
 }
 
+
 var changeUserEvent = function(ereignis){
 
 //##############################################################################################################
-	if (ereignis.slice(0, 7)=="privat_" || ereignis.slice(0, 10)=="privatwin_") {
+	if (ereignis.slice(0, 7)=="privat_") {
 
-		if (ereignis.slice(0, 7)=="privat_") {
-			$("privat").value = ereignis.slice(7, ereignis.length);
-			var selected_win = "";
-		}
-		if (ereignis.slice(0, 10)=="privatwin_") { 
-			$("privat").value = ereignis.slice(10, ereignis.length);
-			var selected_win = "selected";
-		}
+		$("privat").value = ereignis.slice(7, ereignis.length);
+
 
 		// Hier ird anhand der User_ID der entsprechende Username aus dem JSON Resultarray herausgefischt
 		for (var i=0; i < self.jsonObjUserGlobal.userOnline.length; i++)
@@ -880,15 +1197,81 @@ var changeUserEvent = function(ereignis){
 		// Privat window
 		var user_name_p = (self.privat_an.length > 20) ? self.privat_an.slice(0, 20)+"..." : self.privat_an;
 		
-		$("privat_anzeige").innerHTML=lang_changeUserEvent_privat_1+" <b>"+user_name_p+"</b> <select id=\"privat_modus\" ><option value=\"\">"+lang_receiveResultJSON_priv_1+"</option><option value=\"/window: \" "+selected_win+">"+lang_receiveResultJSON_priv_2+"</option></select> <span id=\"close_privat\">"+lang_changeUserEvent_privat_2+"</span>";
-		$("privat_modus").onchange = function(){ $("message").focus(); }
-		
+		$("privat_anzeige").innerHTML=lang_changeUserEvent_privat_1+" <b>"+user_name_p+"</b>&nbsp;&nbsp;&nbsp;<span id=\"close_privat\">"+lang_changeUserEvent_privat_2+"</span>";
+
 		//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 		new Effect.Highlight("message",{startcolor:"#ff6666"});
 		$("message").focus();
 
 		//alert(self.jsonObjUserGlobal.userOnline[0].room);
 	}
+	
+	
+	
+//##############################################################################################################	
+	
+	
+	
+	if (ereignis.slice(0, 10)=="privatwin_") {
+
+		var privat2id = ereignis.slice(10, ereignis.length);
+		
+		// Hier ird anhand der User_ID der entsprechende Username aus dem JSON Resultarray herausgefischt
+		for (var i=0; i < self.jsonObjUserGlobal.userOnline.length; i++)
+			if (self.jsonObjUserGlobal.userOnline[i].user_id==privat2id)
+				var privat2name = self.jsonObjUserGlobal.userOnline[i].user;
+				
+		// Privat window
+		//var user_name_p = (privat2name.length > 20) ? privat2name.slice(0, 20)+"..." : privat2name;
+
+		var win_id1=self.user_id+'00000'+privat2id;
+		var win_id2=privat2id+'00000'+self.user_id;
+		if (typeof self.win_private[win_id1]!="object" && typeof self.win_private[win_id2]!="object"){
+
+							var privat_win_opponent = privat2name; 
+							var privat_win_opponent_id = privat2id;
+
+							self.win_private[win_id1] = new Window({className: self.win_style, title: "Privat mit "+privat_win_opponent,  width:380, height:200, top:eval(50 + Math.round(Math.random()*50)), left:eval(50 + Math.round(Math.random()*50)), resizable: true, showEffect:Effect.Appear, hideEffect: Effect.Fade, showEffectOptions: {duration:0.5, afterFinish:function(effect){ $('pivate_win_'+int_id).scrollTop = $('pivate_win_'+int_id).scrollHeight}}, hideEffectOptions: {duration:0.5}, draggable: true, minimizable: false, maximizable: false, destroyOnClose: false, opacity: 1});
+							self.win_private[win_id1].setHTMLContent('<div id="pivate_win_'+win_id1+'" class="privat_mesages_window"></div><div><form style="display:inline" id="win_form_'+win_id1+'"><table cellspacing="0" cellpadding="0"><tr><td><input type="text" class="private_message_field" id="message_win_'+win_id1+'" ></td><td><img src="img/Checked_small.png" id="submit_img_'+win_id1+'" style="padding-left: 4px; cursor:pointer;"></td><td><img src="img/Smiley_small.png" id="smileys_img_'+win_id1+'" style="padding-left: 4px; cursor:pointer;"></td></tr></table></form></div></div>');
+
+							// Set up a windows observer, check ou debug window to get messages
+							myObserver = {
+								onEndResize: function(eventName, win) {
+								if (win == self.win_private[win_id1]) 
+									$("pivate_win_"+win_id1).style.height=eval(win.getSize().height - 33)+"px";								
+								},
+								onClose: function(eventName, win) { $("message").focus(); }
+							}
+							Windows.addObserver(myObserver);
+							
+			$('win_form_'+win_id1).onsubmit = function() {
+				self.send2privatwin('message_win_'+win_id1, privat2id);
+				return false;
+			}	
+			$('submit_img_'+win_id1).onclick = function() {
+				self.send2privatwin('message_win_'+win_id1, privat2id);
+				return false;
+			}
+			$("smileys_img_"+win_id1).onclick = function(){
+				open_close_smileys_win('message_win_'+win_id1); 
+			}
+			$('message_win_'+win_id1).onfocus = function() {
+				$('message_win_'+win_id1).style.color = $('message').style.color;
+				$('message_win_'+win_id1).style.fontWeight = $('message').style.fontWeight;
+				$('message_win_'+win_id1).style.fontStyle = $('message').style.fontStyle;				
+			}	
+		}
+
+		var int_id = (typeof self.win_private[win_id1]=="object") ? win_id1 : win_id2;
+		try{self.win_private[int_id].show()} catch(w){}	
+		
+		// $('message_win_'+win_id1).focus() war zuerst in win_private[int_id].showEffectOptions.afterFinisch, 
+		// jedoch wird das immer nach win_private[int_id].show() ausgefuehrt. D.h. jedes mal nach einer Message und das geht nicht.
+		// Loesung einfach separat ein Timeout setzen mit 600ms laenger als Effekt Duration-Time von 0.5s
+		setTimeout(function(){ try{$('message_win_'+win_id1).focus();} catch(e){} }, 600);
+		
+	}
+	
 //##############################################################################################################
 	if (ereignis.slice(0, 5)=="room_"){
 
@@ -910,7 +1293,7 @@ var changeUserEvent = function(ereignis){
          	}
         } catch(e){ /* nix */ }
 
-        self.sendSysMessages ( $("room").value, lang_changeUserEvent_room_1+" " + roomName, 0, true);
+        self.sendSysMessages ( $("room").value, lang_changeUserEvent_room_1, 0, true);
 		//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
          setTimeout( updateUserOnlineAnzeigeAfterRoomChange ,700);
@@ -932,6 +1315,7 @@ var changeUserEvent = function(ereignis){
 	   for (var i=0; i < self.jsonObjUserGlobal.userOnline.length; i++)
 	       if (self.jsonObjUserGlobal.userOnline[i].user_id==ereignis.slice(10, ereignis.length)){
                    var user_name = self.jsonObjUserGlobal.userOnline[i].user;
+				   var user_priv = self.jsonObjUserGlobal.userOnline[i].user_priv;
                 }
 				
 			// kein User in der Onlinelist mehr vorhanden
@@ -943,15 +1327,22 @@ var changeUserEvent = function(ereignis){
 			
 			if (user_name.length > 20) user_name = user_name.slice(0, 20)+"...";
 			
-            self.win_block[id] = new Window({className: self.win_style, title:lang_changeUserEvent_infoblock_1+' '+user_name, width:250, height:90, top:pos_top, left:pos_left, resizable: false, showEffect:Effect.Appear, hideEffect: Effect.Fade, showEffectOptions: {duration:0.4, afterFinish:function(effect){ close_info_win(self.win_block[id].getId()) }}, hideEffectOptions: {duration:0.4}, draggable: true, minimizable: false, maximizable: false, destroyOnClose: false, opacity: 1});
-            self.win_block[id].setHTMLContent('\
-			<img src="img/set_name.png" align="left" />&nbsp;&nbsp;<a href="#" id="info_set_name_'+id+'" >'+lang_changeUserEvent_infoblock_2+'</a><br />\
-			<img src="img/privat_chat.png" align="left" />&nbsp;&nbsp;<a href="#" id="info_privatm_'+id+'" >'+lang_changeUserEvent_infoblock_3+'</a><br />\
-			<img src="img/privat_win.png" align="left" />&nbsp;&nbsp;<a href="#" id="info_privatf_'+id+'" >'+lang_changeUserEvent_infoblock_4+'</a><br />\
-			<img src="img/delete.png" align="left" />&nbsp;&nbsp;<a href="#" id="info_blockform_'+id+'" >'+lang_changeUserEvent_infoblock_5+'</a>\
+            self.win_block[id] = new Window({className: self.win_style, title:lang_changeUserEvent_infoblock_1+' '+user_name, width:250, height:98, top:pos_top, left:pos_left, resizable: false, showEffect:Effect.Appear, hideEffect: Effect.Fade, showEffectOptions: {duration:0.4, afterFinish:function(effect){ close_info_win(self.win_block[id].getId()) }}, hideEffectOptions: {duration:0.4}, draggable: true, minimizable: false, maximizable: false, destroyOnClose: false, opacity: 1});
+            
+			var disabled_block = (user_priv=='admin' || user_priv=='mod') ? 'disabled' : '';
+			
+			var separate_win_privat_menue = (self.allowed_privates_in_separate_win) ? '<div style="padding-bottom:2px;"><img src="img/privat_win.png" align="left" />&nbsp;&nbsp;<a href="#" id="info_privatf_'+id+'" >'+lang_changeUserEvent_infoblock_4+'</a></div>' : '';
+			var chat_privat_menue = (self.allowed_privates_in_chat_win) ? '<div style="padding-bottom:2px;"><img src="img/privat_chat.png" align="left" />&nbsp;&nbsp;<a href="#" id="info_privatm_'+id+'" >'+lang_changeUserEvent_infoblock_3+'</a></div>' : '';
+			var block_option4privat = (!self.allowed_privates_in_separate_win && !self.allowed_privates_in_chat_win) ? '' : '<input type="Checkbox" id="blokiere_user_priv_'+id+'" '+disabled_block+'> '+lang_changeUserEvent_infoblock_7;
+			
+			self.win_block[id].setHTMLContent('\
+			<div style="padding-bottom:2px;"><img src="img/set_name.png" align="left" />&nbsp;&nbsp;<a href="#" id="info_set_name_'+id+'" >'+lang_changeUserEvent_infoblock_2+'</a></div>\
+			'+chat_privat_menue+'\
+			'+separate_win_privat_menue+'\
+			<div style="padding-bottom:2px;"><img src="img/delete.png" align="left" />&nbsp;&nbsp;<a href="#" id="info_blockform_'+id+'" >'+lang_changeUserEvent_infoblock_5+'</a></div>\
 			<div id=\"block_form_div_'+id+'\" style="display:none;margin-top:2px;"><form name="user_block_'+id+'" style="display:inline;" >\
-			<input type="Checkbox" id="blokiere_user_all_'+id+'"> '+lang_changeUserEvent_infoblock_6+'&nbsp;&nbsp;&nbsp;\
-			<input type="Checkbox" id="blokiere_user_priv_'+id+'"> '+lang_changeUserEvent_infoblock_7+'</form></div>');
+			<input type="Checkbox" id="blokiere_user_all_'+id+'" '+disabled_block+'> '+lang_changeUserEvent_infoblock_6+'&nbsp;&nbsp;&nbsp;\
+			'+block_option4privat+'</form></div>');
 			
 			var make_ajax_request_of_blocking = true;
 
@@ -972,17 +1363,19 @@ var changeUserEvent = function(ereignis){
 				self.win_block[id].close();
 			}
 			
-			$("info_privatm_"+id).onclick = function(){
-				$('block_form_div_'+id).hide();
-				changeUserEvent('privat_'+id);
-				self.win_block[id].close();
-			}
+			if((self.allowed_privates_in_chat_win))
+				$("info_privatm_"+id).onclick = function(){
+					$('block_form_div_'+id).hide();
+					changeUserEvent('privat_'+id);
+					self.win_block[id].close();
+				}
 			
-			$("info_privatf_"+id).onclick = function(){
-				$('block_form_div_'+id).hide();
-				changeUserEvent('privatwin_'+id);
-				self.win_block[id].close();
-			}
+			if((self.allowed_privates_in_separate_win))
+				$("info_privatf_"+id).onclick = function(){
+					$('block_form_div_'+id).hide();
+					changeUserEvent('privatwin_'+id);
+					self.win_block[id].close();
+				}
 			
 			$("info_blockform_"+id).onclick = function(){
 				$('block_form_div_'+id).toggle();
@@ -1005,7 +1398,7 @@ var changeUserEvent = function(ereignis){
 			}
 			
             $("blokiere_user_all_"+id).onclick = function(){
-            	$("blokiere_user_priv_"+id).checked=false;
+            	try { $("blokiere_user_priv_"+id).checked=false; } catch(e){}
 
                  new Ajax.Request(
                  		"./?BlockUser",
@@ -1016,17 +1409,18 @@ var changeUserEvent = function(ereignis){
 				);
 			}
 
-            $("blokiere_user_priv_"+id).onclick = function(){
-            	$("blokiere_user_all_"+id).checked=false;
+			if((self.allowed_privates_in_separate_win || self.allowed_privates_in_chat_win))
+				$("blokiere_user_priv_"+id).onclick = function(){
+					$("blokiere_user_all_"+id).checked=false;
 
-                 new Ajax.Request(
+					new Ajax.Request(
                  		"./?BlockUser",
                 		 {
                		  	onSuccess: function(){ $('block_form_div_'+id).hide(); self.win_block[id].close(); updateUserOnlineAnzeigeAfterRoomChange(); },
                		  	postBody: "block_priv="+id
                 		 }
-				);
-            }
+					);
+				}
          }
 // User Blokieren. ENDE
 //##############################################################################################################
@@ -1077,6 +1471,12 @@ var changeUserEvent = function(ereignis){
 			}
 			catch(e){/* nix */}
 
+	}
+	
+//##############################################################################################################	
+	if (ereignis.slice(0, 9)=="smilchat_") {
+		$('message').value += ereignis.slice(9, ereignis.length);
+		$('message').focus();
 	}
 //##############################################################################################################
 	if (ereignis.slice(0, 5)=="user_" || ereignis.slice(0, 5)=="usch_"){
@@ -1149,7 +1549,7 @@ var check_room_pw = function(win_laypw,room_id_now, roomName){
                		  				$('chatinhalt').innerHTML='';
 									$("room").value=room_id_now;
 
-               		  				self.sendSysMessages ( $("room").value, lang_changeUserEvent_room_1+" " + roomName, 0, true );
+               		  				self.sendSysMessages ( $("room").value, lang_changeUserEvent_room_1, 0, true );
                		  				setTimeout(updateUserOnlineAnzeigeAfterRoomChange, 400);
                		  			}
                		  			else{$('pwroom_error').innerHTML = "<b>"+lang_changeUserEvent_pwroom_2+"</b>";}

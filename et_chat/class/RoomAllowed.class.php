@@ -11,7 +11,7 @@
  * @since      File available since Alpha 1.0
  */
  
-class RoomAllowed
+class RoomAllowed extends EtChatConfig
 {
 
 	/**
@@ -31,16 +31,19 @@ class RoomAllowed
 	*/
 	public function __construct ($room_priv, $room_id){
 	
-		$room_allowed=0;
+		// call parent Constructor from class EtChatConfig
+		parent::__construct();
 		
-		if ($room_priv==1 && ($_SESSION['etchat_v3_user_priv']=="admin" || $_SESSION['etchat_v3_user_priv']=="mod")) $room_allowed=1;
-		if ($room_priv==2 && $_SESSION['etchat_v3_user_priv']=="admin") $room_allowed=1;
+		$room_allowed=0;
+		if ($room_priv==4 && ($_SESSION['etchat_'.$this->_prefix.'user_priv']=="admin" || $_SESSION['etchat_'.$this->_prefix.'user_priv']=="mod" || $_SESSION['etchat_'.$this->_prefix.'user_priv']=="user")) $room_allowed=1;
+		if ($room_priv==1 && ($_SESSION['etchat_'.$this->_prefix.'user_priv']=="admin" || $_SESSION['etchat_'.$this->_prefix.'user_priv']=="mod")) $room_allowed=1;
+		if ($room_priv==2 && $_SESSION['etchat_'.$this->_prefix.'user_priv']=="admin") $room_allowed=1;
 		if ($room_priv==0) $room_allowed=1;
 
-		if ($room_priv==3 && $_SESSION['etchat_v3_user_priv']!="admin") $room_allowed=2;
-		if ($room_priv==3 && $_SESSION['etchat_v3_user_priv']=="admin") $room_allowed=1;
+		if ($room_priv==3 && $_SESSION['etchat_'.$this->_prefix.'user_priv']!="admin") $room_allowed=2;
+		if ($room_priv==3 && $_SESSION['etchat_'.$this->_prefix.'user_priv']=="admin") $room_allowed=1;
 
-		if (is_array($_SESSION['etchat_v3_roompw_array']) && $room_priv==3 && in_array($room_id, $_SESSION['etchat_v3_roompw_array'])) $room_allowed=1;
+		if (is_array($_SESSION['etchat_'.$this->_prefix.'roompw_array']) && $room_priv==3 && in_array($room_id, $_SESSION['etchat_'.$this->_prefix.'roompw_array'])) $room_allowed=1;
 
 		// Set the permission to the $this->room_status
 		$this->room_status = $room_allowed;

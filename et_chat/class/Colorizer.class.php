@@ -13,6 +13,13 @@
 
 class Colorizer extends EtChatConfig
 {
+
+	/**
+	* LangXml Obj for Colorizer
+	* @var LangXml
+	*/
+	public $lang;
+		
 	/**
 	* Constructor
 	*
@@ -32,7 +39,7 @@ class Colorizer extends EtChatConfig
 		header('Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0');
 	
 		// create new LangXml Object
-		$langObj = new LangXml("./");
+		$langObj = new LangXml();
 		$this->lang=$langObj->getLang()->farben_fenster_php[0];
 	
 		// initialize template

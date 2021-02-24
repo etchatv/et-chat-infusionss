@@ -41,10 +41,10 @@ class Chat extends EtChatConfig
 		header('Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0');
 		
 		// For user reloader, if this documents is just reloaded "F5", the onlineUserReloader have to send all userdata even although there no changes in the online list.  
-		unset($_SESSION['etchat_v3_reload_user_anz']);
+		unset($_SESSION['etchat_'.$this->_prefix.'reload_user_anz']);
 		
 		// if direct requested whithout a login
-		if (empty($_SESSION['etchat_v3_username'])){
+		if (empty($_SESSION['etchat_'.$this->_prefix.'username'])){
 			header('Location: ./');
 			return false;
 		}
@@ -53,6 +53,7 @@ class Chat extends EtChatConfig
 		$langObj = new LangXml;
 		$this->lang=$langObj->getLang()->chat_php[0];
 
+		$_SESSION['etchat_'.$this->_prefix.'random_user_number'] = rand(1,999999999);
 		// initialize chat template
 		$this->initTemplate();
 	}
@@ -64,7 +65,7 @@ class Chat extends EtChatConfig
 	*/
 	private function initTemplate(){
 		// Include Template
-		include_once("styles/".$_SESSION['etchat_v3_style']."/chat.tpl.html");
+		include_once("styles/".$_SESSION['etchat_'.$this->_prefix.'style']."/chat.tpl.html");
 	}
 	
 }

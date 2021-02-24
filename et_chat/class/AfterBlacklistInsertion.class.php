@@ -50,6 +50,6 @@ class AfterBlacklistInsertion extends DbConectionMaker
 	*/
 	private function initTemplate($lang){
 		// Include Template
-		include_once("styles/".$_SESSION['etchat_v3_style']."/blacklisted.tpl.html");
+		include_once("styles/".$_SESSION['etchat_'.$this->_prefix.'style']."/blacklisted.tpl.html");
 	}
 }

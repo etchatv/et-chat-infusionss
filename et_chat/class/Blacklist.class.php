@@ -44,7 +44,8 @@ class Blacklist extends EtChatConfig
 		
 		$this->dbObj = $dbObj;
 		
-		$this->user_param_all = $_SERVER['REMOTE_ADDR']."@".@gethostbyaddr($_SERVER['REMOTE_ADDR'])."@".@getenv('HTTP_X_FORWARDED_FOR');
+		// new since v307-Beta10
+		$this->user_param_all = $_SERVER['REMOTE_ADDR']."@".@gethostbyaddr($_SERVER['REMOTE_ADDR']);
 	}
 	
 	/**
@@ -79,9 +80,9 @@ class Blacklist extends EtChatConfig
 	* @return bool
 	*/
 	public function allowedToAndSetCookie(){
-		$rechte_zum_sperren=$this->dbObj->sqlGet("select etchat_userprivilegien FROM {$this->_prefix}etchat_user where etchat_user_id = ".$_SESSION['etchat_v3_user_id']);
+		$rechte_zum_sperren=$this->dbObj->sqlGet("select etchat_userprivilegien FROM {$this->_prefix}etchat_user where etchat_user_id = ".$_SESSION['etchat_'.$this->_prefix.'user_id']);
 		if ($rechte_zum_sperren[0][0]!="admin" && $rechte_zum_sperren[0][0]!="mod"){
-			$this->dbObj->sqlSet("DELETE FROM {$this->_prefix}etchat_useronline WHERE etchat_onlineuser_fid = ".$_SESSION['etchat_v3_user_id']);
+			$this->dbObj->sqlSet("DELETE FROM {$this->_prefix}etchat_useronline WHERE etchat_onlineuser_fid = ".$_SESSION['etchat_'.$this->_prefix.'user_id']);
 			setcookie("cookie_etchat_blacklist_until", $this->user_bann_time, $this->user_bann_time, "/"); 
 			setcookie("cookie_etchat_blacklist_ip", $this->user_param_all, $this->user_bann_time, "/");
 			return true;

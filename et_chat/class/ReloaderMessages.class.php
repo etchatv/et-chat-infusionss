@@ -4,11 +4,11 @@
  *
  * LICENSE: CREATIVE COMMONS PUBLIC LICENSE  "Namensnennung — Nicht-kommerziell 2.0"
  *
- * @copyright  2009 <SEDesign />
+ * @copyright  2010 <SEDesign />
  * @license    http://creativecommons.org/licenses/by-nc/2.0/de/
- * @version    $3.0.6$
+ * @version    $3.0.7$
  * @link       http://www.sedesign.de/de_produkte_chat-v3.html
- * @since      File available since Alpha 1.0
+ * @since      File available since Alpha 2.0
  */
  
 class ReloaderMessages extends DbConectionMaker
@@ -57,7 +57,7 @@ class ReloaderMessages extends DbConectionMaker
 		if (!is_array($raum_array)) return false;
 		
 		// all needed Userdata for current user
-		$user_array=$this->dbObj->sqlGet("SELECT etchat_user_id, etchat_username, etchat_userprivilegien, etchat_usersex FROM {$this->_prefix}etchat_user where etchat_user_id = ".$_SESSION['etchat_v3_user_id']);
+		$user_array=$this->dbObj->sqlGet("SELECT etchat_user_id, etchat_username, etchat_userprivilegien, etchat_usersex FROM {$this->_prefix}etchat_user where etchat_user_id = ".$_SESSION['etchat_'.$this->_prefix.'user_id']);
 
 		// Update etchat_useronline if the session exists or create a new dataset in the table
 		$this->refreshUserSession($user_array, $raum_array, $blackListObj->user_param_all);
@@ -65,7 +65,7 @@ class ReloaderMessages extends DbConectionMaker
 		if (empty($_POST['privat'])) $_POST['privat']=0;
 
 		// Make message
-		if (isset($_POST['message']) && !empty($_POST['message']) && trim($_POST['message'])!="/window:" && !empty($_SESSION['etchat_v3_user_id'])){
+		if (isset($_POST['message']) && !empty($_POST['message']) && trim($_POST['message'])!="/window:" && !empty($_SESSION['etchat_'.$this->_prefix.'user_id'])){
 			
 			// create new MessageInserter Object
 			$inserterObj = new MessageInserter($this->dbObj, $raum_array);
@@ -106,9 +106,8 @@ class ReloaderMessages extends DbConectionMaker
 				// Blocking if the opponent user that is in the blocklist of user own session
 				if (!$this->blockiere($feld[$a][6],$feld[$a][5])){
 					
-					// outputed messages counter, is used as a continuous message id in chat.js
-					
-					$message2send = addslashes(StaticMethods::filtering($feld[$a][2], $sml));
+					// outputed messages counter, is used as a continuous message id in chat.js (changed since v307-Beta10)
+					$message2send = addslashes(StaticMethods::filtering(stripslashes($feld[$a][2]), $sml, $this->_prefix));
 					
 					// private messages in extra window
 					if (substr($message2send, 0, 8)=="/window:" && $feld[$a][5]!=0) {
@@ -116,8 +115,8 @@ class ReloaderMessages extends DbConectionMaker
 						$normal_message_counter = "";
 					}
 					else {
-						$_SESSION['etchat_v3_count']++;
-						$normal_message_counter = $_SESSION['etchat_v3_count'];
+						$_SESSION['etchat_'.$this->_prefix.'count']++;
+						$normal_message_counter = $_SESSION['etchat_'.$this->_prefix.'count'];
 					}
 					
 					$ausgabeJSON_Inhalt[] = "{\"id\":\"".$normal_message_counter."\",\"user\":\"".(addslashes($feld[$a][1]))."\",\"user_id\":\"".(addslashes($feld[$a][6]))."\",\"message\":\"".$message2send."\",\"time\":\"".date("H:i",$feld[$a][3])."\",\"privat\":\"".$feld[$a][5]."\",\"css\":\"".$feld[$a][7]."\",\"priv\":\"".$feld[$a][8]."\",\"sex\":\"".$feld[$a][9]."\"}";
@@ -148,7 +147,7 @@ class ReloaderMessages extends DbConectionMaker
 	*/
 	private function refreshUserSession($user_array, $raum_array, $user_param_all){
 	
-		$user_onlineid = $this->dbObj->sqlGet("SELECT etchat_onlineid FROM {$this->_prefix}etchat_useronline where etchat_onlineuser_fid = ".$_SESSION['etchat_v3_user_id']);
+		$user_onlineid = $this->dbObj->sqlGet("SELECT etchat_onlineid FROM {$this->_prefix}etchat_useronline where etchat_onlineuser_fid = ".$_SESSION['etchat_'.$this->_prefix.'user_id']);
 
 		// if the usersession was created and is now existing
 		if(is_array($user_onlineid))
@@ -170,12 +169,12 @@ class ReloaderMessages extends DbConectionMaker
 				VALUES ( '".$user_array[0][0]."', ".date('U').", '".$user_param_all."', ".$raum_array[0][0].", ".$raum_array[0][2].", '".$raum_array[0][1]."', '".$user_array[0][1]."', '".$user_array[0][2]."', '".$user_array[0][3]."')");
 			
 			// if user shoul be invisible on enter
-			if ($_SESSION['etchat_v3_invisible_on_enter'])
+			if ($_SESSION['etchat_'.$this->_prefix.'invisible_on_enter'])
 				$this->dbObj->sqlSet("UPDATE {$this->_prefix}etchat_useronline SET 
 					etchat_user_online_user_status_img = 'status_invisible', etchat_user_online_user_status_text = ''
-					WHERE etchat_onlineuser_fid = ".(int)$_SESSION['etchat_v3_user_id']);
+					WHERE etchat_onlineuser_fid = ".(int)$_SESSION['etchat_'.$this->_prefix.'user_id']);
 					
-			//unset($_SESSION['etchat_v3_invisible_on_enter']);
+			//unset($_SESSION['etchat_'.$this->_prefix.'invisible_on_enter']);
 		}
 	}
 
@@ -201,6 +200,8 @@ class ReloaderMessages extends DbConectionMaker
 			// who ist allowed to visit this room
 			$room_allowed=new RoomAllowed($raum_array[0][2], $raum_array[0][0]);
 			if ($room_allowed->room_status!=1){
+				$_POST['room'] = 1;
+				unset($_POST['message']);
 				$raum_array=$this->dbObj->sqlGet("SELECT etchat_id_room, etchat_roomname, etchat_room_goup FROM {$this->_prefix}etchat_rooms where etchat_id_room = 1");
 			}
 		}
@@ -219,14 +220,14 @@ class ReloaderMessages extends DbConectionMaker
 	private function checkKicklist(){	
 		
 		// Get all data from the kick tab
-		$kicklist=$this->dbObj->sqlGet("SELECT id from {$this->_prefix}etchat_kick_user where etchat_kicked_user_id = ".$_SESSION['etchat_v3_user_id']);
+		$kicklist=$this->dbObj->sqlGet("SELECT id from {$this->_prefix}etchat_kick_user where etchat_kicked_user_id = ".$_SESSION['etchat_'.$this->_prefix.'user_id']);
 		
 		if (is_array($kicklist)){
 			
 			// delete the user from kicklist
-			$this->dbObj->sqlSet("delete from {$this->_prefix}etchat_kick_user where etchat_kicked_user_id = ".$_SESSION['etchat_v3_user_id']);
+			$this->dbObj->sqlSet("delete from {$this->_prefix}etchat_kick_user where etchat_kicked_user_id = ".$_SESSION['etchat_'.$this->_prefix.'user_id']);
 
-			$rechte_zum_kicken=$this->dbObj->sqlGet("select etchat_userprivilegien FROM {$this->_prefix}etchat_user where etchat_user_id = ".$_SESSION['etchat_v3_user_id']);
+			$rechte_zum_kicken=$this->dbObj->sqlGet("select etchat_userprivilegien FROM {$this->_prefix}etchat_user where etchat_user_id = ".$_SESSION['etchat_'.$this->_prefix.'user_id']);
 			
 			if ($rechte_zum_kicken[0][0]!="admin" && $rechte_zum_kicken[0][0]!="mod") return true;
 			else return false;
@@ -256,32 +257,44 @@ class ReloaderMessages extends DbConectionMaker
 	* @return Array
 	*/
 	private function selectMessagesForTheUser(){
-	
+			
+			
 		// on first message / on entrance
-		if (empty($_SESSION['etchat_v3_last_id'])) {
-			// checks if the own last_id is realy the last one
-			$counted_ids=$this->dbObj->sqlGet("SELECT count(etchat_id) FROM {$this->_prefix}etchat_messages WHERE etchat_id > ".$_SESSION['etchat_v3_my_first_mess_id']);
+		if (empty($_SESSION['etchat_'.$this->_prefix.'last_id'])) {
+		
+			if (isset($_SESSION['etchat_'.$this->_prefix.'sys_messages']) && !$_SESSION['etchat_'.$this->_prefix.'sys_messages']){
+				$where_sys_messages = "(etchat_user_fid<>1 or (etchat_user_fid=1 and etchat_privat=".$_SESSION['etchat_'.$this->_prefix.'user_id'].")) and ";
+				$this->_messages_shown_on_entrance--;
+			}	
+		
+			// checks if the own last_id is realy the last one (new since v307-Beta10)
+			$counted_ids=$this->dbObj->sqlGet("SELECT count(etchat_id) FROM {$this->_prefix}etchat_messages WHERE etchat_id > ".$_SESSION['etchat_'.$this->_prefix.'my_first_mess_id']. " and (etchat_fid_room = ".(int)$_POST['room']." or etchat_fid_room = 0) and (etchat_privat=0 or etchat_privat=".$_SESSION['etchat_'.$this->_prefix.'user_id'].")");
 			if (is_array($counted_ids) && $counted_ids[0][0]>=$this->_messages_shown_on_entrance) $this->_messages_shown_on_entrance+=$counted_ids[0][0];
 			
 			// get all messages
 			$feld=$this->dbObj->sqlGet("SELECT etchat_id, etchat_username, etchat_text, etchat_timestamp, etchat_fid_room, etchat_privat, etchat_user_id, etchat_text_css, etchat_userprivilegien, etchat_usersex 
-				FROM {$this->_prefix}etchat_messages, {$this->_prefix}etchat_user where (etchat_fid_room = ".(int)$_POST['room']." or etchat_fid_room = 0 or etchat_privat=".$_SESSION['etchat_v3_user_id'].") and
-				(etchat_privat=0 or etchat_privat=".$_SESSION['etchat_v3_user_id']." or etchat_user_fid=".$_SESSION['etchat_v3_user_id'].") and etchat_user_id=etchat_user_fid ORDER BY etchat_id DESC LIMIT ".$this->_messages_shown_on_entrance);
+				FROM {$this->_prefix}etchat_messages, {$this->_prefix}etchat_user where (etchat_fid_room = ".(int)$_POST['room']." or etchat_fid_room = 0 or etchat_privat=".$_SESSION['etchat_'.$this->_prefix.'user_id'].") and ".$where_sys_messages."
+				(etchat_privat=0 or etchat_privat=".$_SESSION['etchat_'.$this->_prefix.'user_id']." or etchat_user_fid=".$_SESSION['etchat_'.$this->_prefix.'user_id'].") and etchat_user_id=etchat_user_fid ORDER BY etchat_id DESC LIMIT ".$this->_messages_shown_on_entrance);
 			
 			// Set last DB id
-			$_SESSION['etchat_v3_last_id'] = $feld[0][0];
+			$_SESSION['etchat_'.$this->_prefix.'last_id'] = $feld[0][0];
 			
 			$feld = array_reverse($feld);
 		}
 		else {
+			
+			if (isset($_SESSION['etchat_'.$this->_prefix.'sys_messages']) && !$_SESSION['etchat_'.$this->_prefix.'sys_messages']){
+				$where_sys_messages = "(etchat_user_fid<>1 or (etchat_user_fid=1 and etchat_privat=".$_SESSION['etchat_'.$this->_prefix.'user_id'].")) and ";
+			}	
+		
 			// get all messages
 			$feld=$this->dbObj->sqlGet("SELECT etchat_id, etchat_username, etchat_text, etchat_timestamp, etchat_fid_room, etchat_privat, etchat_user_id, etchat_text_css, etchat_userprivilegien, etchat_usersex 
-				FROM {$this->_prefix}etchat_messages, {$this->_prefix}etchat_user WHERE (etchat_fid_room = ".(int)$_POST['room']." or etchat_fid_room = 0 or etchat_privat=".$_SESSION['etchat_v3_user_id'].")
-				and etchat_id > ".$_SESSION['etchat_v3_last_id']." and
-				(etchat_privat=0 or etchat_privat=".$_SESSION['etchat_v3_user_id']." or etchat_user_fid=".$_SESSION['etchat_v3_user_id'].")
+				FROM {$this->_prefix}etchat_messages, {$this->_prefix}etchat_user WHERE (etchat_fid_room = ".(int)$_POST['room']." or etchat_fid_room = 0 or etchat_privat=".$_SESSION['etchat_'.$this->_prefix.'user_id'].")
+				and etchat_id > ".$_SESSION['etchat_'.$this->_prefix.'last_id']." and ".$where_sys_messages."
+				(etchat_privat=0 or etchat_privat=".$_SESSION['etchat_'.$this->_prefix.'user_id']." or etchat_user_fid=".$_SESSION['etchat_'.$this->_prefix.'user_id'].")
 				and etchat_user_id=etchat_user_fid ORDER BY etchat_id ");
 			
-			if (is_array($feld)) $_SESSION['etchat_v3_last_id']= $feld[(count($feld)-1)][0];
+			if (is_array($feld)) $_SESSION['etchat_'.$this->_prefix.'last_id']= $feld[(count($feld)-1)][0];
 			else
 			// DE
 			// Das ist wichtig hier die last_id aus der DB auszulesen sogar wenn für das Raum in bem sich der User befindet keine
@@ -293,7 +306,7 @@ class ReloaderMessages extends DbConectionMaker
 			// when the user is going to the other chat room hi's got all messges from this room
 			{
 				$id=$this->dbObj->sqlGet("SELECT etchat_id FROM {$this->_prefix}etchat_messages ORDER BY etchat_id DESC LIMIT 1");
-				$_SESSION['etchat_v3_last_id']=$id[0][0];
+				$_SESSION['etchat_'.$this->_prefix.'last_id']=$id[0][0];
 			}
 		}
 		return $feld;
@@ -308,8 +321,8 @@ class ReloaderMessages extends DbConectionMaker
 	* @return void
 	*/
 	private function blockiere($user_id, $privat_id){
-		if (is_array ($_SESSION['etchat_v3_block_all']) && in_array($user_id, $_SESSION['etchat_v3_block_all'])) return true;
-		if (is_array ($_SESSION['etchat_v3_block_priv']) && in_array($user_id, $_SESSION['etchat_v3_block_priv']) && $privat_id==$_SESSION['etchat_v3_user_id']) return true;
+		if (is_array ($_SESSION['etchat_'.$this->_prefix.'block_all']) && in_array($user_id, $_SESSION['etchat_'.$this->_prefix.'block_all'])) return true;
+		if (is_array ($_SESSION['etchat_'.$this->_prefix.'block_priv']) && in_array($user_id, $_SESSION['etchat_'.$this->_prefix.'block_priv']) && $privat_id==$_SESSION['etchat_'.$this->_prefix.'user_id']) return true;
 	}
 
 	

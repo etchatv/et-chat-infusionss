@@ -58,7 +58,7 @@ class History extends DbConectionMaker
 			$counted=$this->dbObj->sqlGet("
 			SELECT count(etchat_id)
 			FROM ({$this->_prefix}etchat_messages JOIN {$this->_prefix}etchat_rooms ON {$this->_prefix}etchat_messages.etchat_fid_room = {$this->_prefix}etchat_rooms.etchat_id_room) INNER JOIN {$this->_prefix}etchat_user ON {$this->_prefix}etchat_messages.etchat_user_fid = {$this->_prefix}etchat_user.etchat_user_id
-			WHERE ({$this->_prefix}etchat_messages.etchat_user_fid=".$_SESSION['etchat_v3_user_id']." AND {$this->_prefix}etchat_messages.etchat_privat>0) OR {$this->_prefix}etchat_messages.etchat_privat=".$_SESSION['etchat_v3_user_id']);
+			WHERE ({$this->_prefix}etchat_messages.etchat_user_fid=".$_SESSION['etchat_'.$this->_prefix.'user_id']." AND {$this->_prefix}etchat_messages.etchat_privat>0) OR {$this->_prefix}etchat_messages.etchat_privat=".$_SESSION['etchat_'.$this->_prefix.'user_id']);
 		else
 			$counted=$this->dbObj->sqlGet("
 			SELECT count(etchat_id)
@@ -78,7 +78,7 @@ class History extends DbConectionMaker
 			$feld=$this->dbObj->sqlGet("
 			SELECT {$this->_prefix}etchat_messages.etchat_id, {$this->_prefix}etchat_user.etchat_username, {$this->_prefix}etchat_messages.etchat_text, {$this->_prefix}etchat_messages.etchat_timestamp, {$this->_prefix}etchat_rooms.etchat_roomname, {$this->_prefix}etchat_messages.etchat_privat, {$this->_prefix}etchat_messages.etchat_user_fid, {$this->_prefix}etchat_messages.etchat_text_css
 			FROM ({$this->_prefix}etchat_messages JOIN {$this->_prefix}etchat_rooms ON {$this->_prefix}etchat_messages.etchat_fid_room = {$this->_prefix}etchat_rooms.etchat_id_room) INNER JOIN {$this->_prefix}etchat_user ON {$this->_prefix}etchat_messages.etchat_user_fid = {$this->_prefix}etchat_user.etchat_user_id
-			WHERE ({$this->_prefix}etchat_messages.etchat_user_fid=".$_SESSION['etchat_v3_user_id']." AND {$this->_prefix}etchat_messages.etchat_privat>0) OR {$this->_prefix}etchat_messages.etchat_privat=".$_SESSION['etchat_v3_user_id']."
+			WHERE ({$this->_prefix}etchat_messages.etchat_user_fid=".$_SESSION['etchat_'.$this->_prefix.'user_id']." AND {$this->_prefix}etchat_messages.etchat_privat>0) OR {$this->_prefix}etchat_messages.etchat_privat=".$_SESSION['etchat_'.$this->_prefix.'user_id']."
 			ORDER BY {$this->_prefix}etchat_messages.etchat_id DESC $limit");
 		else
 			$feld=$this->dbObj->sqlGet("
@@ -114,7 +114,7 @@ class History extends DbConectionMaker
 
 		echo"</select>";
 
-		if ($_SESSION['etchat_v3_user_priv']=="admin" || $_SESSION['etchat_v3_user_priv']=="mod") echo"&nbsp;&nbsp;&nbsp;".$lang->export[0]->tagData." <a href=\"#\" id=\"export_excel\">Excel</a> | <a href=\"#\" id=\"export_csv\">CSV</a> | <a href=\"#\" id=\"export_xml\">XML</a>";
+		if ($_SESSION['etchat_'.$this->_prefix.'user_priv']=="admin" || $_SESSION['etchat_'.$this->_prefix.'user_priv']=="mod") echo"&nbsp;&nbsp;&nbsp;".$lang->export[0]->tagData." <a href=\"#\" id=\"export_excel\">Excel</a> | <a href=\"#\" id=\"export_csv\">CSV</a> | <a href=\"#\" id=\"export_xml\">XML</a>";
 
 		echo"</form>
 		</div>
@@ -136,13 +136,25 @@ class History extends DbConectionMaker
 					if($a%2==1) echo "<tr class=\"ungerade\" id=\"tr".$feld[$a][0]."\" >";
 					else echo "<tr class=\"gerade\" id=\"tr".$feld[$a][0]."\"  >";
 					}
-				if ($feld[$a][5]!=0 && $feld[$a][6]==$_SESSION['etchat_v3_user_id']) echo "<tr class=\"privat_von\" id=\"tr".$feld[$a][0]."\"  >";
-				if ($feld[$a][5] == $_SESSION['etchat_v3_user_id']) echo "<tr class=\"privat_nach\" id=\"tr".$feld[$a][0]."\"  >";
+				if ($feld[$a][5]!=0 && $feld[$a][6]==$_SESSION['etchat_'.$this->_prefix.'user_id']) {
+					echo "<tr class=\"privat_von\" id=\"tr".$feld[$a][0]."\"  >";
+					$private_at=$this->dbObj->sqlGet("SELECT etchat_username from {$this->_prefix}etchat_user where etchat_user_id = ".(int)$feld[$a][5]);
+					$private_at_user = (is_array($private_at)) ? "&nbsp;<span style=\"font-size: 1.2em;\"><b>>>></b></span>&nbsp;".$private_at[0][0] : "";
+				}
+				if ($feld[$a][5] == $_SESSION['etchat_'.$this->_prefix.'user_id']) {
+					echo "<tr class=\"privat_nach\" id=\"tr".$feld[$a][0]."\"  >";
+					$private_at_user = "";
+				}
+				
+				$message = StaticMethods::filtering($feld[$a][2], $sml, $this->_prefix);
+				if (substr($message,0,8) == "/window:")
+					$message = "<img src=\"./img/privat_win.png\" /> ".substr($message,8,strlen($message));
+				
 				echo "
 				<td style=\"padding:2px\">".$feld[$a][0]."</td>
-				<td style=\"padding:2px\">".$feld[$a][1]."</td>
+				<td style=\"padding:2px\">".$feld[$a][1].$private_at_user."</td>
 				<td style=\"padding:2px\">".date("d.m.Y (H:i)",$feld[$a][3])."</td>
-				<td style=\"padding:2px\">".StaticMethods::filtering($feld[$a][2], $sml)."</td>
+				<td style=\"padding:2px\">".$message."</td>
 				<td style=\"padding:2px\">".$feld[$a][4]."</td>";
 				echo "</tr>";
 			}

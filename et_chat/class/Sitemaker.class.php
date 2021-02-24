@@ -6,7 +6,7 @@
  *
  * @copyright  2009 <SEDesign />
  * @license    http://creativecommons.org/licenses/by-nc/2.0/de/
- * @version    $3.0.6$
+ * @version    $3.0.7$
  * @link       http://www.sedesign.de/de_produkte_chat-v3.html
  * @since      File available since Alpha 1.0
  */
@@ -38,7 +38,12 @@ $print_site_count = $sitemakerObj->get();
 	*/
 	private $counted;
 
-
+	/**
+	* Make link or just ID for JS
+	* @var Bool
+	*/
+	public $href=false;
+	
 	/**
 	* Constructor
 	*
@@ -69,8 +74,17 @@ $print_site_count = $sitemakerObj->get();
 		if ($seite<1) $seite=1;
 		if ($seite>$anzahl_der_seiten_ermittelt) $seite=$anzahl_der_seiten_ermittelt ;
 
+		if ($this->href) {
+			$href_inc_minus = str_replace ( '#site#', ($seite-1), $tpl );
+			$href_inc_plus= str_replace ( '#site#', ($seite+1), $tpl );
+		}
+		else {
+			$href_inc_minus ="#";
+			$href_inc_plus ="#";
+		}
+		
 		if ($seite==1) $this->print_site_count =  $minus_stop."&nbsp;&nbsp;";
-		else $this->print_site_count = "<a class=\"sitemaker\" href=\"#\" id=\"".str_replace ( '#site#', ($seite-1), $tpl )."\" title=\"Site -\">".$minus."</a>&nbsp;&nbsp;";
+		else $this->print_site_count = "<a class=\"sitemaker\" href=\"".$href_inc_minus."\" id=\"".str_replace ( '#site#', ($seite-1), $tpl )."\" title=\"Site -\">".$minus."</a>&nbsp;&nbsp;";
 
 
 		$this->print_site_count .= $site_text."\n<form action=\"\" style=\"display:inline;\">";
@@ -86,7 +100,7 @@ $print_site_count = $sitemakerObj->get();
 		$this->print_site_count .= "&nbsp;".$of_text."&nbsp;".$anzahl_der_seiten_ermittelt."&nbsp;&nbsp;";
 
 		if (($this->counted/$this->anzahl_der_messages_pro_seite) <= $seite) $this->print_site_count .= $plus;
-		else $this->print_site_count .= "<a class=\"sitemaker\" href=\"#\" id=\"".str_replace ( '#site#', ($seite+1), $tpl )."\"  title=\"Site +\">".$plus_stop."</a>";
+		else $this->print_site_count .= "<a class=\"sitemaker\" href=\"".$href_inc_plus."\" id=\"".str_replace ( '#site#', ($seite+1), $tpl )."\"  title=\"Site +\">".$plus_stop."</a>";
 
 	}
 

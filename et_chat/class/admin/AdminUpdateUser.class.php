@@ -30,13 +30,15 @@ class AdminUpdateUser extends DbConectionMaker
 		session_start();
 
 		header('Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0');
+		// Sets charset and content-type for index.php
+		header('content-type: text/html; charset=utf-8');
 		
 		// create new LangXml Object
 		$langObj = new LangXml();
 		$lang=$langObj->getLang()->admin[0]->admin_user[0];
 		
 		
-		if ($_SESSION['etchat_v3_user_priv']=="admin"){
+		if ($_SESSION['etchat_'.$this->_prefix.'user_priv']=="admin" && !empty($_POST['id'])){
 			
 		$pass = (!empty($_POST['pw'])) ? "etchat_userpw = '".md5($_POST['pw'])."'," : "";
 
@@ -50,12 +52,12 @@ class AdminUpdateUser extends DbConectionMaker
         }
         
 		// Checks if this user exists and is an admin
-        $res_dop = $this->dbObj->sqlGet("select count(etchat_user_id) FROM {$this->_prefix}etchat_user where etchat_username = '".htmlentities($_POST['user'], ENT_QUOTES, "UTF-8")."' and etchat_userprivilegien <> 'gast' and etchat_user_id<>".(int)$_POST['id']);
+        $res_dop = $this->dbObj->sqlGet("select count(etchat_user_id) FROM {$this->_prefix}etchat_user where etchat_username = '".htmlspecialchars($_POST['user'], ENT_QUOTES, "UTF-8")."' and etchat_userprivilegien <> 'gast' and etchat_user_id<>".(int)$_POST['id']);
         if ($res_dop[0][0]>0){
             echo "Not possible, because a user with this name exists.<br><br><a href=\"./?AdminUserIndex\">back</a>";
             return false;
         }
-		$this->dbObj->sqlSet("UPDATE {$this->_prefix}etchat_user SET ".$pass." etchat_username = '".htmlentities($_POST['user'], ENT_QUOTES, "UTF-8")."', etchat_userprivilegien  = '".htmlentities($_POST['priv'], ENT_QUOTES, "UTF-8")."' WHERE etchat_user_id=".(int)$_POST['id']);
+		$this->dbObj->sqlSet("UPDATE {$this->_prefix}etchat_user SET ".$pass." etchat_username = '".htmlspecialchars($_POST['user'], ENT_QUOTES, "UTF-8")."', etchat_userprivilegien  = '".htmlspecialchars($_POST['priv'], ENT_QUOTES, "UTF-8")."' WHERE etchat_user_id=".(int)$_POST['id']);
 
 		$this->dbObj->close();
 		header("Location: ./?AdminUserIndex");

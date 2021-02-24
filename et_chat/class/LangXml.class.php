@@ -11,7 +11,7 @@
  * @since      File available since Alpha 1.0
  */
  
-class LangXml
+class LangXml extends EtChatConfig
 {
 	/**
 	* XMLParser Obj
@@ -29,16 +29,19 @@ class LangXml
 	* @uses XMLParser::$document root-tag as DOM Obj
 	* @return void
 	*/
-	public function __construct ($path="./", $xmlfile=""){	
+	public function __construct ($path="./lang/", $xmlfile=""){	
+		
+		// call parent Constructor from class EtChatConfig
+		parent::__construct();
 		
 		// if you want to use an other lang-file then was sets in the actual session
-		$xmlfile = (empty($xmlfile)) ? $_SESSION['etchat_v3_lang_xml_file'] : $xmlfile;
-		
+		$xmlfile = (empty($xmlfile)) ? $_SESSION['etchat_'.$this->_prefix.'lang_xml_file'] : $xmlfile;
+
 		//if still empty
 		if (empty($xmlfile)) $xmlfile = "lang_en.xml";
 		
 		// read the whole XML-Lang file
-		$xml = @file_get_contents($path.'lang/'.$xmlfile);
+		$xml = @file_get_contents($path.$xmlfile);
 		
 		// create a XMLParser obj
 		$parser = new XMLParser($xml);

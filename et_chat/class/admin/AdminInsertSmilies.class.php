@@ -30,13 +30,15 @@ class AdminInsertSmilies extends DbConectionMaker
 		session_start();
 
 		header('Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0');
+		// Sets charset and content-type for index.php
+		header('content-type: text/html; charset=utf-8');
 		
 		// create new LangXml Object
 		$langObj = new LangXml();
 		$lang=$langObj->getLang()->admin[0]->admin_smilies[0];
 		
 		
-		if ($_SESSION['etchat_v3_user_priv']=="admin"){
+		if ($_SESSION['etchat_'.$this->_prefix.'user_priv']=="admin"){
 
 			$uploaddir = './smilies/';
 			$checkfile = "./smilies/".$_FILES['smiliefile']['name'];
@@ -55,13 +57,17 @@ class AdminInsertSmilies extends DbConectionMaker
 				$print_result.= $lang->sign_exists[0]->tagData."<br>";
 				$print_result.= "<a href='./?AdminSmiliesIndex'>".$lang->back[0]->tagData."</a>";
 			}else{
-				if (move_uploaded_file($_FILES['smiliefile']['tmp_name'], $uploaddir . $nowname) && (eregi(".png", $nowname) || eregi(".gif", $nowname) || eregi(".jpg", $nowname) )) {
+			
+				$is_image = getimagesize($_FILES['smiliefile']['tmp_name']);
+				if (is_array($is_image)) {
+					move_uploaded_file($_FILES['smiliefile']['tmp_name'], $uploaddir . $nowname);
 					$this->dbObj->sqlSet("INSERT INTO {$this->_prefix}etchat_smileys(etchat_smileys_sign,etchat_smileys_img) VALUES ('".$_POST['sign']."', 'smilies/".$nowname."')");
 					$print_result.= $lang->isupload[0]->tagData."<br>";
 					$print_result.= $notes;
 					$print_result.= "<br><a href='./?AdminCreateNewSmilies'>".$lang->smilie[0]->tagData."</a>";
 					$print_result.= "<br /><a href='./?AdminSmiliesIndex'>".$lang->back[0]->tagData."</a>";
 				} else {
+					@unlink($_FILES['smiliefile']['tmp_name']);
 					$print_result.= $lang->noupload[0]->tagData;
 					//print_r($_FILES);
 					$print_result.= "<br /><br /><a href='./?AdminSmiliesIndex'>".$lang->back[0]->tagData."</a>";

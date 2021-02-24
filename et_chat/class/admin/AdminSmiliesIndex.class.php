@@ -31,13 +31,20 @@ class AdminSmiliesIndex extends DbConectionMaker
 		session_start();
 
 		header('Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0');
+		// Sets charset and content-type for index.php
+		header('content-type: text/html; charset=utf-8');
 		
 		// create new LangXml Object
 		$langObj = new LangXml();
 		$lang=$langObj->getLang()->admin[0]->admin_smilies[0];
 		
 		
-		if ($_SESSION['etchat_v3_user_priv']=="admin"){
+		if ($_SESSION['etchat_'.$this->_prefix.'user_priv']=="admin"){
+			
+						
+			// Checksum to prevent this: http://www.sedesign.de/sed/forum/forum_entry.php?id=7154
+			$_SESSION['etchat_'.$this->_prefix.'CheckSum4RegUserEdit'] = rand(1,999999999);
+			
 			
 			$feld=$this->dbObj->sqlGet("SELECT * FROM {$this->_prefix}etchat_smileys");
 			$this->dbObj->close();
@@ -59,7 +66,7 @@ class AdminSmiliesIndex extends DbConectionMaker
 					<a href=\"./?AdminRenameSmilies&id=".$datasets[0]."\">".$lang->rename[0]->tagData."</a>
 					</td>
 					<td >
-					<a href=\"./?AdminDeleteSmilies&id=".$datasets[0]."&pic=".$datasets[2]."\">".$lang->delete[0]->tagData."</a>
+					<a href=\"./?AdminDeleteSmilies&id=".$datasets[0]."&pic=".$datasets[2]."&cs4rue=".$_SESSION['etchat_'.$this->_prefix.'CheckSum4RegUserEdit']."\">".$lang->delete[0]->tagData."</a>
 					</td></tr>";
 				}
 			}

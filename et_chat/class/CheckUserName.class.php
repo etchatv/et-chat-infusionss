@@ -6,7 +6,7 @@
  *
  * @copyright  2009 <SEDesign />
  * @license    http://creativecommons.org/licenses/by-nc/2.0/de/
- * @version    $3.0.6$
+ * @version    $3.0.7$
  * @link       http://www.sedesign.de/de_produkte_chat-v3.html
  * @since      File available since Alpha 1.0
  */
@@ -66,7 +66,7 @@ class CheckUserName extends DbConectionMaker
 			$this->configTabData2Session();
 			
 			// something like cron-job to delete wasteful/old data from db
-			$this->dbObj->sqlSet("delete FROM {$this->_prefix}etchat_messages where etchat_timestamp < ".(date('U')-($_SESSION['etchat_v3_loeschen_nach']*3600*24)));
+			$this->dbObj->sqlSet("delete FROM {$this->_prefix}etchat_messages where etchat_timestamp < ".(date('U')-($_SESSION['etchat_'.$this->_prefix.'loeschen_nach']*3600*24)));
 			$this->dbObj->sqlSet("delete FROM {$this->_prefix}etchat_blacklist where etchat_blacklist_time < ".date('U'));
 			$this->dbObj->sqlSet("delete FROM {$this->_prefix}etchat_kick_user where etchat_kicked_user_time < ".date('U'));
 		}
@@ -75,11 +75,11 @@ class CheckUserName extends DbConectionMaker
 		
 		// cookies are explicit duty
 		if (!$this->user_application)
-			if(!isset($_COOKIE['cookie_test'])){ $this->errorMessage("Please aktivate your cookies."); return false;}
+			if(!isset($_COOKIE[$this->_prefix.'cookie_test'])){ $this->errorMessage("Please aktivate your cookies."); return false;}
 		
 		// check if the request comes from index.php
 		if (!$this->user_application)
-			if(!isset($_POST[$_SESSION['set_check']])){ $this->errorMessage("no hacks and bots"); return false;}
+			if(!isset($_POST[$_SESSION[$this->_prefix.'set_check']])){ $this->errorMessage("no hacks and bots"); return false;}
 		
 		// create new LangXml Object
 		$langObj = new LangXml();
@@ -90,15 +90,15 @@ class CheckUserName extends DbConectionMaker
 			if (!$this->loginCounter()) return false;
 		
 		// open the style.CSS and get the user text-color and system text-color from the header part of any et-chat css styles
-		$style_lines = file("styles/".$_SESSION['etchat_v3_style']."/style.css");
+		$style_lines = file("styles/".$_SESSION['etchat_'.$this->_prefix.'style']."/style.css");
 		foreach($style_lines as $line){
 			if (substr($line, 0, 10)=="Textfarbe:") {
 				$ft = explode(":", $line);
-				$_SESSION['etchat_v3_textcolor'] = trim($ft[1]);
+				$_SESSION['etchat_'.$this->_prefix.'textcolor'] = trim($ft[1]);
 			}
 			if (substr($line, 0, 12)=="Systemfarbe:") {
 				$fs = explode(":", $line);
-				$_SESSION['etchat_v3_syscolor'] = trim($fs[1]);
+				$_SESSION['etchat_'.$this->_prefix.'syscolor'] = trim($fs[1]);
 			}
 		}
 
@@ -116,13 +116,14 @@ class CheckUserName extends DbConectionMaker
 		}
 		
 		// delete all old datasets from the etchat_useronline table (session table)
-		$this->dbObj->sqlSet("DELETE FROM {$this->_prefix}etchat_useronline WHERE etchat_onlinetimestamp < ".(date('U')-(($_SESSION['etchat_v3_config_reloadsequenz']/1000)*4)));
+		$this->dbObj->sqlSet("DELETE FROM {$this->_prefix}etchat_useronline WHERE etchat_onlinetimestamp < ".(date('U')-(($_SESSION['etchat_'.$this->_prefix.'config_reloadsequenz']/1000)*4)));
 
 		// abort, if $username empty or to long
 		if (empty($username) || strlen($username)>100) { $this->errorMessage(""); return false; }
 		
-		// convert username with htmlspecialchars
-		$username = htmlspecialchars($username, ENT_QUOTES, "UTF-8");
+		// convert username with htmlspecialchars  >  preg_replace('/[\x00-\x1F]/', .... )   to prevent hacking over Live HTTP Headrs (since v307 beta 6)
+		//$username = htmlspecialchars(str_replace("\\","/",preg_replace('/[\x00-\x1F]/', '', $username)), ENT_QUOTES, "UTF-8");
+		$username = htmlspecialchars(str_replace("\\","/",preg_replace('/[\x00-\x1F\x90\x8F\x81\xA0\x9D]/', '', $username)), ENT_QUOTES, "UTF-8");
 		
 		// abort, if this username is occupied now
 		if (!$this->user_application)
@@ -131,8 +132,8 @@ class CheckUserName extends DbConectionMaker
 		// Dataset with Userparameter from etchat_user tab. The dataset is empty if there no such user with this name
 		$user_exists = $this->dbObj->sqlGet("SELECT etchat_user_id, etchat_username, etchat_userpw, etchat_userprivilegien FROM {$this->_prefix}etchat_user WHERE etchat_username = '".$username."' order by etchat_userpw DESC");
 		
-		// create new CheckerAndInserterObj Object
-		$userCheckerAndInserterObj = new UserCheckerAndInserter($this->dbObj, $user_exists, $username, $_POST['pw'], $gender, $this->lang);
+		// create new CheckerAndInserterObj Object (changed since v307-Beta10)
+		$userCheckerAndInserterObj = new UserCheckerAndInserter($this->dbObj, $user_exists, $username, $_POST['pw'], preg_replace("/[^a-z]/i", "n", $gender), $this->lang);
 		
 		//  Status 1 means that the loggining was sucessfull
 		if ($userCheckerAndInserterObj->status==1) $this->messageOnEnter();
@@ -211,6 +212,10 @@ class CheckUserName extends DbConectionMaker
 		// create new RoomEntrance Object
 		new RoomEntrance($this->dbObj, $this->lang);
 
+		// important in order to prevent hacking via Live HTTP Headers (thanks an the iranian script kiddies)
+		// (since v307 beta 7)
+		unset($_SESSION[$this->_prefix.'set_check']);
+		
 		$this->dbObj->close();
 		
 		// it was sucessfull so give it to JavaScript in login.js as AJAX Response

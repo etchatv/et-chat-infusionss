@@ -33,7 +33,7 @@ class AfterKicklistInsertion extends DbConectionMaker
 
 		header('Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0');
 		
-		$this->dbObj->sqlSet("DELETE FROM {$this->_prefix}etchat_useronline WHERE etchat_onlineuser_fid = ".$_SESSION['etchat_v3_user_id']);
+		$this->dbObj->sqlSet("DELETE FROM {$this->_prefix}etchat_useronline WHERE etchat_onlineuser_fid = ".$_SESSION['etchat_'.$this->_prefix.'user_id']);
 		$this->dbObj->close();
 		
 		// create new LangXml Object
@@ -55,6 +55,6 @@ class AfterKicklistInsertion extends DbConectionMaker
 	*/
 	private function initTemplate($lang){
 		// Include Template
-		include_once("styles/".$_SESSION['etchat_v3_style']."/kicked.tpl.html");
+		include_once("styles/".$_SESSION['etchat_'.$this->_prefix.'style']."/kicked.tpl.html");
 	}
 }

@@ -31,13 +31,15 @@ class AdminCreateNewUser extends DbConectionMaker
 		session_start();
 
 		header('Cache-Control: no-store, no-cache, must-revalidate, pre-check=0, post-check=0, max-age=0');
+		// Sets charset and content-type for index.php
+		header('content-type: text/html; charset=utf-8');
 		
 		// create new LangXml Object
 		$langObj = new LangXml();
 		$lang=$langObj->getLang()->admin[0]->admin_user[0];
 		
 		
-		if ($_SESSION['etchat_v3_user_priv']=="admin"){
+		if ($_SESSION['etchat_'.$this->_prefix.'user_priv']=="admin"){
 			
 			$feld=$this->dbObj->sqlGet("SELECT etchat_user_id, etchat_username, etchat_userpw, etchat_userprivilegien FROM {$this->_prefix}etchat_user WHERE etchat_userprivilegien='admin' OR etchat_userprivilegien='mod'");
 			$this->dbObj->close();

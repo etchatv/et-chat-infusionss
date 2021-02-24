@@ -30,7 +30,7 @@ class HistoryExport extends DbConectionMaker
 
 		session_start();
 
-		if ($_SESSION['etchat_v3_user_priv']!="admin" && $_SESSION['etchat_v3_user_priv']!="mod") return false;
+		if ($_SESSION['etchat_'.$this->_prefix.'user_priv']!="admin" && $_SESSION['etchat_'.$this->_prefix.'user_priv']!="mod") return false;
 		
 		$exportFormat = $_GET['format'];
 		
@@ -57,7 +57,7 @@ class HistoryExport extends DbConectionMaker
 			$feld=$this->dbObj->sqlGet("
 			SELECT {$this->_prefix}etchat_messages.etchat_id, {$this->_prefix}etchat_user.etchat_username, {$this->_prefix}etchat_messages.etchat_text, {$this->_prefix}etchat_messages.etchat_timestamp, {$this->_prefix}etchat_rooms.etchat_roomname, {$this->_prefix}etchat_messages.etchat_privat, {$this->_prefix}etchat_messages.etchat_user_fid, {$this->_prefix}etchat_messages.etchat_text_css
 			FROM ({$this->_prefix}etchat_messages JOIN {$this->_prefix}etchat_rooms ON {$this->_prefix}etchat_messages.etchat_fid_room = {$this->_prefix}etchat_rooms.etchat_id_room) INNER JOIN {$this->_prefix}etchat_user ON {$this->_prefix}etchat_messages.etchat_user_fid = {$this->_prefix}etchat_user.etchat_user_id
-			WHERE ({$this->_prefix}etchat_messages.etchat_user_fid=".$_SESSION['etchat_v3_user_id']." AND {$this->_prefix}etchat_messages.etchat_privat>0) OR {$this->_prefix}etchat_messages.etchat_privat=".$_SESSION['etchat_v3_user_id']."
+			WHERE ({$this->_prefix}etchat_messages.etchat_user_fid=".$_SESSION['etchat_'.$this->_prefix.'user_id']." AND {$this->_prefix}etchat_messages.etchat_privat>0) OR {$this->_prefix}etchat_messages.etchat_privat=".$_SESSION['etchat_'.$this->_prefix.'user_id']."
 			ORDER BY {$this->_prefix}etchat_messages.etchat_id DESC");
 		else
 			$feld=$this->dbObj->sqlGet("

@@ -47,10 +47,10 @@ abstract class DbConectionMaker extends EtChatConfig
 		$feld = $this->dbObj->sqlGet("select etchat_config_reloadsequenz, etchat_config_messages_im_chat, etchat_config_style, etchat_config_loeschen_nach, etchat_config_lang FROM {$this->_prefix}etchat_config where etchat_config_id=1");
 		
 		// setting all the session vars
-		$_SESSION['etchat_v3_config_reloadsequenz'] = $feld[0][0];
-		$_SESSION['etchat_v3_anz_messages_im_chat'] = $feld[0][1];
-		$_SESSION['etchat_v3_style'] = $feld[0][2];
-        $_SESSION['etchat_v3_loeschen_nach'] = $feld[0][3];
-        $_SESSION['etchat_v3_lang_xml_file'] = $feld[0][4];
+		$_SESSION['etchat_'.$this->_prefix.'config_reloadsequenz'] = $feld[0][0];
+		$_SESSION['etchat_'.$this->_prefix.'anz_messages_im_chat'] = $feld[0][1];
+		$_SESSION['etchat_'.$this->_prefix.'style'] = $feld[0][2];
+        $_SESSION['etchat_'.$this->_prefix.'loeschen_nach'] = $feld[0][3];
+        $_SESSION['etchat_'.$this->_prefix.'lang_xml_file'] = $feld[0][4];
 	}
 }

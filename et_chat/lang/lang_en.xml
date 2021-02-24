@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
-<content lang="english" version="3050">
+<content lang="english" version="3070">
 	<chat_js>
 		<start_prop_link>Clear screen</start_prop_link>
 		<start_prop_link>Show history</start_prop_link>
@@ -9,6 +9,35 @@
 		<start_prop_link>Change password</start_prop_link> 
 		<start_prop_link>New PW:</start_prop_link>
 		<start_prop_link>only privat on</start_prop_link><!-- Sound status -->
+		<start_prop_link>show system messages</start_prop_link>
+		<start_prop_link>Remove password protection</start_prop_link>
+		<start_prop_register>
+			<start_prop_link>Protect your name</start_prop_link> 
+			<title>Sign Up</title>
+			<pw1>Password:</pw1>
+			<pw2>Repeat password:</pw2>
+			<button_register>Assign</button_register>
+			<button_cancel>Cancel</button_cancel>
+			<befor_registering>By assigning a password, you can reserve your chat name permanently.</befor_registering>
+			<after_registering>Thank you for your registration. When you re-sign in the chat you will be prompted to enter your password.</after_registering>
+			<after_registering_link>Leave the chat</after_registering_link>
+			<error>Passwords are not identical! Please correct.</error>
+		</start_prop_register>
+		<remove_pw_win>
+			<title>Remove password-protection for:</title>
+			<text>To remove the password-protection for your nik name, please confirm it and insert your password.</text>
+			<text>Notice!</text>
+			<text>After the confirmation you will be logged out.</text>
+			<button>Remove password-protection</button>
+		</remove_pw_win>
+		<warning_user_away_1>
+			<warning>Warning!</warning>
+			<warning>This user is currently not being conducted in the online list.</warning>
+		</warning_user_away_1>
+		<warning_user_away_2>
+			<warning>Warning!</warning>
+			<warning>The recipient has already left the chat.</warning>
+		</warning_user_away_2>
 		<start>to everybody in this room:</start>
 		<ajaxreadrequest>you are to long inaktiv. You will be logged out in 30 sek.</ajaxreadrequest>
 		<receiveresultjson>at</receiveresultjson>
@@ -22,6 +51,7 @@
 		<updateuseronlineanzeige>User(s) in chat:</updateuseronlineanzeige>
 		<updateuseronlineanzeige>Get user name</updateuseronlineanzeige>
 		<statuslink>User state</statuslink>
+		<title_alert>New Message/s</title_alert>
 		<status imagename="status_online" rights="all">online</status> 
 		<status imagename="status_invisible" rights="admin">invisible</status>
 		<status imagename="status_busy" rights="all">busy</status>
@@ -112,6 +142,13 @@ You are not allowed to login so many times in a short period of time.</many_logi
 		<export>Export history:</export>
 		<empty>No datasets found.</empty>
 	</history_php>
+	<changepw_php>
+		<warning>You have already protected a name by password within the past 24 hours.</warning>
+	</changepw_php>
+	<unregisterpw_php>
+		<warning>Error!</warning>
+		<warning>Your password is wrong.</warning>
+	</unregisterpw_php>	
 	<admin>
 		<add2blacklist>
 			<session_lost>You\'re not allowed to be here your session is lost.</session_lost>
@@ -139,6 +176,7 @@ You are not allowed to login so many times in a short period of time.</many_logi
 			<link>Administrate Admins/Mods</link>
 			<link>General chat settings</link>
 			<link>Smilie administration</link>
+			<link>Administrate registered users</link>
 		</index_php>
 		<admin_blacklist>
 			<backlink>back to the adminmenue</backlink>
@@ -155,6 +193,7 @@ You are not allowed to login so many times in a short period of time.</many_logi
 			<room_priv>admins and mods</room_priv>
 			<room_priv>only admins</room_priv>
 			<room_priv>pass protected</room_priv>
+			<room_priv>registered user</room_priv>
 			<create>Create</create>
 			<roomslist>Room list</roomslist>
 			<rename>edit</rename>
@@ -200,6 +239,28 @@ You are not allowed to login so many times in a short period of time.</many_logi
 			<make_norm_user>Make this user to a normal chat user.</make_norm_user>
 			<del_priv>Deprive all privileges</del_priv>
 		</admin_user>
+		
+		<admin_reg_user>
+			<backlink>back to the adminmenue</backlink>
+			<set_all>select all</set_all>
+			<unset_all>select none</unset_all>
+			<del>delete selected users</del>
+			<make2>change to:</make2>
+			<name>Name</name>
+			<reg_date>Reg. Date</reg_date>
+			<reg_ip>IP while reg.</reg_ip>
+			<asc>asc</asc>
+			<desc>desc</desc>
+			<sort>sorted by:</sort>
+			<text>If a user is deleted, the deleted name will be released for the guest access.</text>
+			<note>Note that the changes come in the chat only after some seconds delay.</note>
+			<error>You\'re not allowed to be here your session is lost.</error>
+			<nouser>No registered users found.</nouser>
+			<nouser2>To create new administrators / moderators, they must be registered first in the chat, so their names with password protection. Then it is possible to assign to every registered user mod or admin privileges.</nouser2>
+			<site_of>of</site_of>
+			<site>Site:</site>
+		</admin_reg_user>
+		
 		<admin_prop>
 			<backlink>back to the adminmenue</backlink>
 			<anz>Number of the indicated lines in the chat:</anz>

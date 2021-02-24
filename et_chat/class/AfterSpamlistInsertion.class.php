@@ -50,6 +50,6 @@ class AfterSpamlistInsertion extends DbConectionMaker
 	*/
 	private function initTemplate($lang){
 		// Include Template
-		include_once("styles/".$_SESSION['etchat_v3_style']."/spamlisted.tpl.html");
+		include_once("styles/".$_SESSION['etchat_'.$this->_prefix.'style']."/spamlisted.tpl.html");
 	}
 }

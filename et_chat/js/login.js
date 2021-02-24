@@ -16,6 +16,7 @@ Element.hide('lay_pw');
   $("login").onsubmit = function(){
 
 	if (!Element.visible('lay_pw')) $('pw').value='';
+	$('submit_button').disabled = true;
 
     var myAjaxObj= new Ajax.Request(
                  "./?CheckUserName",
@@ -23,13 +24,13 @@ Element.hide('lay_pw');
                   onSuccess: function(ajaxResult) {
                  	if (ajaxResult.responseText==1) location.href='./?Chat';
                  	else{
+							$('submit_button').disabled = false;
                             if (ajaxResult.responseText=='pw' || ajaxResult.responseText=='pw+invisible') {
                                  	Element.show('lay_pw');
 									if (ajaxResult.responseText=='pw+invisible') Element.show('lay_invisible');
                                  	Element.hide('lay_gender');
                                  	$("pw").focus();
-                                 }
-                         	else {
+                            } else {
                          		if (ajaxResult.responseText=='blacklist') location.href="./?AfterBlacklistInsertion";
                          		else if(!ajaxResult.responseText.empty()) alert(ajaxResult.responseText);
 								else {

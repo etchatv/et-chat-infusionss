@@ -45,10 +45,10 @@ class RoomEntrance extends EtChatConfig
 		$room_message=$this->dbObj->sqlGet("SELECT etchat_room_message FROM {$this->_prefix}etchat_rooms where etchat_id_room = 1");
 		
 		// if invisible mode on entrance
-		if (!empty($_POST['status_invisible']) && ($_SESSION['etchat_v3_user_priv']=='admin' || $_SESSION['etchat_v3_user_priv']=='mod')) 
-			$_SESSION['etchat_v3_invisible_on_enter'] = true;
+		if (!empty($_POST['status_invisible']) && ($_SESSION['etchat_'.$this->_prefix.'user_priv']=='admin' || $_SESSION['etchat_'.$this->_prefix.'user_priv']=='mod')) 
+			$_SESSION['etchat_'.$this->_prefix.'invisible_on_enter'] = true;
 		else 
-			$_SESSION['etchat_v3_invisible_on_enter'] = false;
+			$_SESSION['etchat_'.$this->_prefix.'invisible_on_enter'] = false;
 		
 		// if no room message, just make a user entrance message
 		if (empty($room_message[0][0])) $this->withoutRoomMessage();
@@ -57,7 +57,7 @@ class RoomEntrance extends EtChatConfig
 		
 		// this is a very important value. Its a counter for all incomming messages that will be shown in the user chat-window. It is needed 
 		// by chat.js for making a unique and continuous id for every gotten dataset.
-		$_SESSION['etchat_v3_last_id'] = 0;
+		$_SESSION['etchat_'.$this->_prefix.'last_id'] = 0;
 	}
 	
 	/**
@@ -67,11 +67,11 @@ class RoomEntrance extends EtChatConfig
 	*/
 	private function withoutRoomMessage(){	
 
-		$an = (!empty($_POST['status_invisible']) && ($_SESSION['etchat_v3_user_priv']=='admin' || $_SESSION['etchat_v3_user_priv']=='mod')) ? $_SESSION['etchat_v3_user_id'] : 0;
+		$an = (!empty($_POST['status_invisible']) && ($_SESSION['etchat_'.$this->_prefix.'user_priv']=='admin' || $_SESSION['etchat_'.$this->_prefix.'user_priv']=='mod')) ? $_SESSION['etchat_'.$this->_prefix.'user_id'] : 0;
 		
 		// the first message id that have been shown for the user. This var will be worked up in reloader
-		$sysMessObj = new SysMessage($this->dbObj, "<b>".$_SESSION['etchat_v3_username']."</b> ".$this->_lang->eintritt[0]->tagData, 0, $an );
-		$_SESSION['etchat_v3_my_first_mess_id'] = $sysMessObj->lastInsertedId;
+		$sysMessObj = new SysMessage($this->dbObj, "<b>".$_SESSION['etchat_'.$this->_prefix.'username']."</b> ".$this->_lang->eintritt[0]->tagData, 0, $an );
+		$_SESSION['etchat_'.$this->_prefix.'my_first_mess_id'] = $sysMessObj->lastInsertedId;
 	}
 	
 	/**
@@ -82,7 +82,7 @@ class RoomEntrance extends EtChatConfig
 	*/
 	private function withRoomMessage($room_message){	
 	
-		$an = (!empty($_POST['status_invisible']) && ($_SESSION['etchat_v3_user_priv']=='admin' || $_SESSION['etchat_v3_user_priv']=='mod')) ? $_SESSION['etchat_v3_user_id'] : 0;
+		$an = (!empty($_POST['status_invisible']) && ($_SESSION['etchat_'.$this->_prefix.'user_priv']=='admin' || $_SESSION['etchat_'.$this->_prefix.'user_priv']=='mod')) ? $_SESSION['etchat_'.$this->_prefix.'user_id'] : 0;
 		
 		// word wrap in WIN
 		$room_message_insert = str_replace("\r\n","<br />",$room_message);
@@ -90,9 +90,10 @@ class RoomEntrance extends EtChatConfig
 		$room_message_insert = str_replace("\n","<br />",$room_message_insert);
 
 		// the first message id that have been shown for the user. This var will be worked up in reloader
-		$sysMessObj = new SysMessage($this->dbObj, "<br /><div style=\"margin: 4px;\">".$room_message_insert."</div>", 1, $_SESSION['etchat_v3_user_id']);	
-		$_SESSION['etchat_v3_my_first_mess_id'] = $sysMessObj->lastInsertedId;		
-		new SysMessage($this->dbObj, "<b>".$_SESSION['etchat_v3_username']."</b> ".$this->_lang->eintritt[0]->tagData, 0, $an );
+
+		$sysMessObj = new SysMessage($this->dbObj, "<br /><div style=\"margin: 4px;\">".$room_message_insert."</div>", 1, $_SESSION['etchat_'.$this->_prefix.'user_id']);	
+		$_SESSION['etchat_'.$this->_prefix.'my_first_mess_id'] = $sysMessObj->lastInsertedId;		
+		new SysMessage($this->dbObj, "<b>".$_SESSION['etchat_'.$this->_prefix.'username']."</b> ".$this->_lang->eintritt[0]->tagData, 0, $an );
 		
 	}
 }

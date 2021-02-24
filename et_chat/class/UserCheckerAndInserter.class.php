@@ -93,6 +93,7 @@ class UserCheckerAndInserter extends EtChatConfig
 		}
 		else $this->createNewUser();
 		
+		
 	}
 	
 	/**
@@ -104,9 +105,9 @@ class UserCheckerAndInserter extends EtChatConfig
 	private function createNewUser(){	
 		$this->dbObj->sqlSet("INSERT INTO {$this->_prefix}etchat_user ( etchat_username, etchat_usersex ) VALUES ( '".$this->_user."', '".$this->_gender{0}."')");
 		$user_neu=$this->dbObj->sqlGet("SELECT etchat_user_id, etchat_username, etchat_userprivilegien FROM {$this->_prefix}etchat_user WHERE etchat_username = '".$this->_user."' LIMIT 1");
-		$_SESSION['etchat_v3_user_id'] = $user_neu[0][0];
-		$_SESSION['etchat_v3_username'] = $user_neu[0][1];
-        $_SESSION['etchat_v3_user_priv'] = $user_neu[0][2];
+		$_SESSION['etchat_'.$this->_prefix.'user_id'] = $user_neu[0][0];
+		$_SESSION['etchat_'.$this->_prefix.'username'] = $user_neu[0][1];
+        $_SESSION['etchat_'.$this->_prefix.'user_priv'] = $user_neu[0][2];
 		$this->status=1;
 	}
 	
@@ -117,11 +118,11 @@ class UserCheckerAndInserter extends EtChatConfig
 	*/
 	private function userWithPw(){
 		if ($this->_user_exists[0][2]==md5($this->_pw)){
-			$_SESSION['etchat_v3_user_id'] = $this->_user_exists[0][0];
-			$_SESSION['etchat_v3_username'] = $this->_user_exists[0][1];
-			$_SESSION['etchat_v3_user_priv'] = $this->_user_exists[0][3];
-			if ($_SESSION['etchat_v3_user_priv']=='admin' ||
-				$_SESSION['etchat_v3_user_priv']=='mod') setcookie("cookie_anzahl_logins_in_XX_sek",1);
+			$_SESSION['etchat_'.$this->_prefix.'user_id'] = $this->_user_exists[0][0];
+			$_SESSION['etchat_'.$this->_prefix.'username'] = $this->_user_exists[0][1];
+			$_SESSION['etchat_'.$this->_prefix.'user_priv'] = $this->_user_exists[0][3];
+			if ($_SESSION['etchat_'.$this->_prefix.'user_priv']=='admin' ||
+				$_SESSION['etchat_'.$this->_prefix.'user_priv']=='mod') setcookie("cookie_anzahl_logins_in_XX_sek",1);
 			$this->status=1;
 		}
 		else $this->status = $this->_lang->pw_falsch[0]->tagData;
@@ -141,11 +142,11 @@ class UserCheckerAndInserter extends EtChatConfig
 
 		}
 		else {
-			$_SESSION['etchat_v3_user_id'] = $this->_user_exists[0][0];
-			$_SESSION['etchat_v3_username'] = $this->_user_exists[0][1];
-			$_SESSION['etchat_v3_user_priv'] = $this->_user_exists[0][3];
-			if ($_SESSION['etchat_v3_user_priv']=='admin' ||
-				$_SESSION['etchat_v3_user_priv']=='mod') setcookie("cookie_anzahl_logins_in_XX_sek",1);
+			$_SESSION['etchat_'.$this->_prefix.'user_id'] = $this->_user_exists[0][0];
+			$_SESSION['etchat_'.$this->_prefix.'username'] = $this->_user_exists[0][1];
+			$_SESSION['etchat_'.$this->_prefix.'user_priv'] = $this->_user_exists[0][3];
+			if ($_SESSION['etchat_'.$this->_prefix.'user_priv']=='admin' ||
+				$_SESSION['etchat_'.$this->_prefix.'user_priv']=='mod') setcookie("cookie_anzahl_logins_in_XX_sek",1);
 			$this->status = 1;
 		}
 	}

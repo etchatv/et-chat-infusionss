@@ -38,7 +38,7 @@ class Insert2Blacklist extends DbConectionMaker
 		$langObj = new LangXml();
 		$lang=$langObj->getLang()->admin[0]->add2blacklist[0];
 		
-		if($_SESSION['etchat_v3_user_priv']=="admin" || $_SESSION['etchat_v3_user_priv']=="mod"){
+		if($_SESSION['etchat_'.$this->_prefix.'user_priv']=="admin" || $_SESSION['etchat_'.$this->_prefix.'user_priv']=="mod"){
 				
 			$ip=$this->dbObj->sqlGet("SELECT etchat_onlineip FROM {$this->_prefix}etchat_useronline WHERE etchat_onlineuser_fid = ".(int)$_POST['user_id']);
 			

@@ -33,7 +33,7 @@ class CheckRoomPw extends DbConectionMaker
 		
 		if (!is_array($freigabe)) echo "wrong";
 		else{
-			$_SESSION['etchat_v3_roompw_array'][]=$freigabe[0][0];
+			$_SESSION['etchat_'.$this->_prefix.'roompw_array'][]=$freigabe[0][0];
 			echo "1";
 		}
 		

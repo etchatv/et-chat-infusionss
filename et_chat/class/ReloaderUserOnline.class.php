@@ -36,8 +36,8 @@ class ReloaderUserOnline extends DbConectionMaker
 		header('content-type: application/json; charset=utf-8');
 		
 		// delete all old datasets from the etchat_useronline table (session table)
-		if (!empty($_SESSION['etchat_v3_config_reloadsequenz']))
-			$this->dbObj->sqlSet("DELETE FROM {$this->_prefix}etchat_useronline WHERE etchat_onlinetimestamp < ".(date('U')-(((int)$_SESSION['etchat_v3_config_reloadsequenz']/1000)*4)));
+		if (!empty($_SESSION['etchat_'.$this->_prefix.'config_reloadsequenz']))
+			$this->dbObj->sqlSet("DELETE FROM {$this->_prefix}etchat_useronline WHERE etchat_onlinetimestamp < ".(date('U')-(((int)$_SESSION['etchat_'.$this->_prefix.'config_reloadsequenz']/1000)*4)));
 
 		// Get all Session from the etchat_useronline with all user sessions
 		$feld=$this->dbObj->sqlGet("SELECT
@@ -88,16 +88,16 @@ class ReloaderUserOnline extends DbConectionMaker
 			$rel .= $roomarray[$a][0].$roomarray[$a][1];
 		
 		// add the blocking parameters to the same string
-		if (is_array ($_SESSION['etchat_v3_block_all'])) $rel .= implode("-",$_SESSION['etchat_v3_block_all']);
-		if (is_array ($_SESSION['etchat_v3_block_priv'])) $rel .= implode("-",$_SESSION['etchat_v3_block_priv']);
-		if (is_array ($_SESSION['etchat_v3_roompw_array'])) $rel .= implode("-",$_SESSION['etchat_v3_roompw_array']);
+		if (is_array ($_SESSION['etchat_'.$this->_prefix.'block_all'])) $rel .= implode("-",$_SESSION['etchat_'.$this->_prefix.'block_all']);
+		if (is_array ($_SESSION['etchat_'.$this->_prefix.'block_priv'])) $rel .= implode("-",$_SESSION['etchat_'.$this->_prefix.'block_priv']);
+		if (is_array ($_SESSION['etchat_'.$this->_prefix.'roompw_array'])) $rel .= implode("-",$_SESSION['etchat_'.$this->_prefix.'roompw_array']);
 
 		// equalize the actual made string with the string saved at last turn/pull
-		if($_SESSION['etchat_v3_reload_user_anz'] == $rel) return false;
+		if($_SESSION['etchat_'.$this->_prefix.'reload_user_anz'] == $rel) return false;
 		else {
 		
 			// Save the actual string to the session
-			$_SESSION['etchat_v3_reload_user_anz'] = $rel;
+			$_SESSION['etchat_'.$this->_prefix.'reload_user_anz'] = $rel;
 			return true;
 		}
 	}
@@ -112,7 +112,7 @@ class ReloaderUserOnline extends DbConectionMaker
 	
 		$benutzer_id_in_db = 0;
 		for ($a=0; $a < count($feld); $a++)	
-			if ($feld[$a][3]==$_SESSION['etchat_v3_user_id']) $benutzer_id_in_db++;
+			if ($feld[$a][3]==$_SESSION['etchat_'.$this->_prefix.'user_id']) $benutzer_id_in_db++;
 
 		if($benutzer_id_in_db!=1) return false;
 		else return true;
@@ -149,25 +149,29 @@ class ReloaderUserOnline extends DbConectionMaker
 		for ($a=0; $a < count($feld); $a++){
 
 			// strikethrough the user name if this user ist blocked by you
-			if (is_array ($_SESSION['etchat_v3_block_all']) && in_array($feld[$a][3], $_SESSION['etchat_v3_block_all'])) $feld[$a][0]="<strike>".$feld[$a][0];
-			if (is_array ($_SESSION['etchat_v3_block_priv']) && in_array($feld[$a][3], $_SESSION['etchat_v3_block_priv'])) $feld[$a][0]="<strike>".$feld[$a][0];
+			if (is_array ($_SESSION['etchat_'.$this->_prefix.'block_all']) && in_array($feld[$a][3], $_SESSION['etchat_'.$this->_prefix.'block_all'])) $feld[$a][0]="<strike>".$feld[$a][0];
+			if (is_array ($_SESSION['etchat_'.$this->_prefix.'block_priv']) && in_array($feld[$a][3], $_SESSION['etchat_'.$this->_prefix.'block_priv'])) $feld[$a][0]="<strike>".$feld[$a][0];
 
 			// who ist allowed to visit this room
-			$room_allowed = new RoomAllowed($feld[$a][6], $feld[$a][2]);
+			if($feld[$a][2]!=$last_room_id){
+				$room_allowed = new RoomAllowed($feld[$a][6], $feld[$a][2]);
+				$room_status = $room_allowed->room_status;
+				$last_room_id = $feld[$a][2];
+			}
 	
 			// Put the chat status in yourSession
-			if ($_SESSION['etchat_v3_user_id']==$feld[$a][3]) $_SESSION['etchat_v3_userstatus'] = $feld[$a][8];
+			if ($_SESSION['etchat_'.$this->_prefix.'user_id']==$feld[$a][3]) $_SESSION['etchat_'.$this->_prefix.'userstatus'] = $feld[$a][8];
 
 			if ($a>0) echo "\n,\n";
 
 			echo"{";
 			echo"\"user\": \"".addslashes($feld[$a][0])."\",\"user_id\": \"".$feld[$a][3]."\",";
 			echo"\"user_priv\": \"".$feld[$a][5]."\",\"user_sex\": \"".$feld[$a][7]."\",\"user_simg\": \"".$feld[$a][8]."\",";
-			echo"\"user_stext\": \"".$feld[$a][9]."\",\"room_id\": \"".$feld[$a][2]."\",\"room_allowed\": \"".$room_allowed->room_status."\",";
+			echo"\"user_stext\": \"".$feld[$a][9]."\",\"room_id\": \"".$feld[$a][2]."\",\"room_allowed\": \"".$room_status."\",";
 			echo"\"room\": \"".addslashes($feld[$a][1])."\"";
 			
 			// this data is only for admin and mod.  Its importand for blacklist
-			if ($_SESSION['etchat_v3_user_priv']=="admin" || $_SESSION['etchat_v3_user_priv']=="mod") 
+			if ($_SESSION['etchat_'.$this->_prefix.'user_priv']=="admin" || $_SESSION['etchat_'.$this->_prefix.'user_priv']=="mod") 
 				echo",\"user_ip\": \"".addslashes(str_replace("@"," - ",$feld[$a][4]))."\"";
 			echo"}";
 		}
