@@ -1,0 +1,80 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="de" lang="de">
+<head>
+	<title>ET-Chat v3.0.6</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7" />
+
+  <script src="js/prototype.js" type="text/javascript"></script>
+  <script src="js/scriptaculous.js" type="text/javascript"></script>
+  <script src="js/chat.js" type="text/javascript"></script>
+  <script src="./?MessagesForJs" type="text/javascript"></script>
+  <link href="styles/<?=$_SESSION['etchat_v3_style']?>/style.css" rel="stylesheet" type="text/css"/>
+
+<!-- window.js Class zum erzeugen der Fenster -->
+<!-- info http://prototype-window.xilinus.com -->
+<script type="text/javascript" src="js/window.js"></script>
+<link href="styles/default_2create_win.css" rel="stylesheet" type="text/css"/>
+
+  <script type="text/javascript">
+
+window.onload = function() {
+	var chatObj = new ET_Chat();
+	chatObj.messages_im_chat=<?=$_SESSION['etchat_v3_anz_messages_im_chat']?>;
+	chatObj.reload_interval=<?=$_SESSION['etchat_v3_config_reloadsequenz']?>;
+	chatObj.username='<?=$_SESSION['etchat_v3_username']?>';
+	chatObj.user_id='<?=$_SESSION['etchat_v3_user_id']?>';
+	chatObj.userPrivilegienGlobal='<?=$_SESSION['etchat_v3_user_priv']?>';
+	chatObj.win_style='<?=$_SESSION['etchat_v3_style']?>';
+	chatObj.anbindung_an_userverwaltung=<?=(!empty($_SESSION['etchat_v3_logout_url'])) ? "true" : "false";?>;
+	chatObj.show_history_all_user=true; //sonst wird die History nur fuer Admin u Mod sichtbar
+	chatObj.set_dynamic_height=true; // sonst hat das ganze Chat eine feste Hoehe
+	chatObj.textcolor='<?=$_SESSION['etchat_v3_textcolor']?>';
+	chatObj.start();
+	chatObj.userOnline();
+	if ( Prototype.Browser.IE ) 
+		$("splitpane").onmousedown = function(){ chatObj.dragSplitpane(); }
+	else 
+		chatObj.dragSplitpane();
+}
+
+  </script>
+
+</head>
+<body id="body_id">
+<div id="rahmen_um_alles">
+<div id="kopf">ET - Chat v3.0.6 by &lt;<a href="http://www.sedesign.de" target="_blank">SEDesign</a> /&gt; &copy; 2009 (<?=$this->lang->hallo_user[0]->tagData?> <b><?=$_SESSION['etchat_v3_username']?></b>!)</div>
+<div id="onlinelist"><img src="img/ajax-loader.gif" alt="" /></div>
+<div id="splitpane"></div>
+<div id="chatinhalt"></div>
+
+<div id="form">
+<form id="message_form" style="display:inline;" action="">
+
+<div id="form_left">
+
+<div id="privat_anzeige"><?=$this->lang->privat_anzeige[0]->tagData?></div>
+
+<input type="hidden" name="room" id="room" value="1" />
+<input type="hidden" name="privat" id="privat" value="" />
+<input type="hidden" name="bold" id="bold" value="normal" />
+<input type="hidden" name="italic" id="italic" value="normal" />
+<input type="hidden" name="color" id="color" value="#<?=$_SESSION['etchat_v3_textcolor']?>" />
+
+<input name="message" id="message" type="text" class="input" style="width:400px;" />
+</div>
+<div id="form_right">
+<img id="link_sagen" class="img_button" src="img/Checked.png" width="32" height="32" border="0" alt="<?=$this->lang->sagen[0]->tagData?>" title="<?=$this->lang->sagen[0]->tagData?>" />&nbsp;&nbsp;&nbsp;
+<img id="link_smileys" class="img_button" src="img/Smiley_Cool.png" width="32" height="32" border="0" alt="<?=$this->lang->smileys[0]->tagData?>" title="<?=$this->lang->smileys[0]->tagData?>" />&nbsp;&nbsp;&nbsp;
+<img id="link_color" class="img_button" src="img/Colors.png" width="32" height="32" border="0" alt="<?=$this->lang->color[0]->tagData?>" title="<?=$this->lang->color[0]->tagData?>" />&nbsp;&nbsp;&nbsp;
+<img id="link_prop" class="img_button" src="img/Display.png" width="32" height="32" border="0" alt="<?=$this->lang->prop[0]->tagData?>" title="<?=$this->lang->prop[0]->tagData?>" />
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<img id="link_logout" class="img_button" src="img/Delete_big.png" width="32" height="32" border="0" alt="<?=$this->lang->logout[0]->tagData?>" title="<?=$this->lang->logout[0]->tagData?>" />
+</div>
+</form>
+</div>
+
+</div>
+</body>
+</html>
